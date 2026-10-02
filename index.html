@@ -257,6 +257,12 @@ body.locked #status{display:none}
 .leadbar.other{background:var(--warn-soft);border-color:var(--warn)}
 .leadbar.none{background:var(--surface);border-color:var(--line)}
 .leadbar input{width:auto;flex:1 1 160px}
+.top{flex-wrap:nowrap;align-items:flex-start}
+.topright{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0}
+.helpbtn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font:600 14px var(--body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px 6px 6px;white-space:nowrap}
+.helpbtn span{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-weight:700}
+.helpbtn:hover{border-color:var(--muted)}
+.topright .status{text-align:right}
 </style>
 
 <div class="wrap">
@@ -264,8 +270,9 @@ body.locked #status{display:none}
     <div>
       <h1>G2018 Trening</h1>
       <div class="sub" id="dateline"></div>
+      <div class="status" id="status" style="margin-top:4px"></div>
     </div>
-    <div class="status" id="status"></div>
+    <div class="topright"><a class="helpbtn" href="hjelp.html"><span aria-hidden="true">?</span> Hjelp</a></div>
   </div>
 
   <div id="opening" class="panel lock hidden"><span class="hint">Åpner …</span></div>
@@ -280,7 +287,7 @@ body.locked #status{display:none}
     <div id="createBox" class="ok hidden" style="display:flex;flex-direction:column;gap:10px"><span id="createMsg"></span><div class="row"><button class="btn primary" id="createYes" type="button">Opprett laget</button><button class="btn" id="createNo" type="button">Avbryt</button></div></div>
     <div id="adminState" class="ok hidden"></div>
     <div class="hint">Tips: Legg siden til på hjemskjermen (Del → «Legg til på Hjem-skjerm»), så får du den som en app.</div>
-    <div class="row" style="gap:18px"><a class="linkbtn" href="hjelp.html">Slik bruker du appen</a><button class="linkbtn" id="lockAdmin" type="button">Logg inn som administrator</button></div>
+    <button class="linkbtn" id="lockAdmin" type="button" style="align-self:flex-start">Logg inn som administrator</button>
   </form>
 
   <div id="leadBar" class="leadbar hidden"></div>
@@ -486,7 +493,7 @@ body.locked #status{display:none}
       <div class="row"><button class="btn danger" id="resetAll">Slett alt</button></div>
     </div>
   </section>
-  <div class="acct" id="acctRow"><span id="acctInfo"></span><a class="linkbtn" href="hjelp.html">Slik bruker du appen</a><button class="linkbtn" id="adminBtn" type="button">Logg inn som administrator</button><button class="linkbtn" id="lockBtn" type="button">Glem lagkoden på denne telefonen</button></div>
+  <div class="acct" id="acctRow"><span id="acctInfo"></span><button class="linkbtn" id="adminBtn" type="button">Logg inn som administrator</button><button class="linkbtn" id="lockBtn" type="button">Glem lagkoden på denne telefonen</button></div>
   <div id="selBar" class="stick hidden"><span id="selText"></span><button id="selCancel">Avbryt</button></div>
 </div>
 
