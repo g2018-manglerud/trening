@@ -1277,15 +1277,18 @@ function plan(){
   const games=ALL().filter(isGame);
   const game=(T&&(games.find(e=>e.theme===T)||games.find(e=>themesOf(e).includes(T))))||exA('w40-spill')||games[0];
   const total=Number(set.minutes)===75?75:60;
-  const stMin=total===75?(N>=5?8:9):(N>=6?6:N>=4?6:7);
-  const change=1, end=2;
+  /* Tidsplan: 5 min rigg, stasjoner (minst 6 min hver), 2 min drikkepause, spill (mål 20 min).
+     Strekker ikke tiden til, krymper spillet. Samlingen tas etter treningen og har ingen minutter. */
+  const rig=5, drink=2, change=1, end=0, GAME_TARGET=20, ST_MIN=6, ST_MAX=10;
+  const avail=total-rig-drink;
+  const stMin=Math.max(ST_MIN,Math.min(ST_MAX,Math.floor((avail-GAME_TARGET-(N-1)*change)/N)));
   const stTotal=N*stMin+(N-1)*change;
-  const gameMin=Math.max(10,total-stTotal-end);
+  const gameMin=Math.max(0,avail-stTotal);
   /* Spill uten innbyttere: 4 mot 4 (3 mot 3 når det er få), maks 9 per bane der nr. 9 er joker. Opptil 6 baner. */
   const pitches=Math.max(1,Math.min(6,Math.ceil(sz.n/9)));
   const pb=Math.floor(sz.n/pitches), pr=sz.n%pitches;
   const pitchSizes=Array.from({length:pitches},(_,i)=>pb+(i<pr?1:0));
-  return {w,key,sz,picks,auto:i=>!(ov[i]&&exA(ov[i])),balls,gs,cost:cost(),T,game:smallGame(game),total,stMin,stTotal,gameMin,pitches,pitchSizes,end,
+  return {w,key,sz,picks,auto:i=>!(ov[i]&&exA(ov[i])),balls,gs,cost:cost(),T,game:smallGame(game),total,stMin,stTotal,gameMin,pitches,pitchSizes,end,rig,drink,
     gameBalls:pitches*(Number(game.bpg)||2)};
 }
 
@@ -1488,9 +1491,12 @@ function render(){
       <span class="hint">${w.p?esc(w.p.name)+(w.n?` · trening ${w.i+1} av ${w.n}`:''):''}</span></div>
     ${P.T?`<div><b>Si til barna:</b> ${esc(TFOCUS[w.t])}</div>`:''}`;
   let t=0; const rows=[];
-  rows.push(`<tr><td class="tm">${range(0,P.stTotal)} min</td><td><b>Stasjoner:</b> ${N} × ${P.stMin} min. Gruppene starter på hver sin stasjon og bytter til neste nummer når treneren blåser (${N} → 1).</td></tr>`);
-  t=P.stTotal; rows.push(`<tr><td class="tm">${range(t,t+P.gameMin)} min</td><td><a href="#nx-card-game">${esc(P.game.title)}</a><div class="hint">${P.pitches} ${P.pitches===1?'bane':'baner'}, ingen innbyttere: ${esc(gameSummary(P))}. Bruk kjeglene fra stasjonene.</div></td></tr>`);
-  t+=P.gameMin; rows.push(`<tr><td class="tm">${range(t,P.total)} min</td><td>Samling: «Hva var gøy i dag?»${P.T?` og «${['Hvem fikk spilt ballen fremover?','Hvem scoret eller prøvde å skyte?','Hvem vant ballen?','Hvem stoppet et skudd?'][w.t]}»`:''}</td></tr>`);
+  rows.push(`<tr><td class="tm">${range(0,P.rig)} min</td><td><b>Rigg:</b> hovedtrener deler barna inn i grupper, mens hjelpetrenerne setter opp stasjonene.</td></tr>`);
+  t=P.rig;
+  rows.push(`<tr><td class="tm">${range(t,t+P.stTotal)} min</td><td><b>Stasjoner:</b> ${N} × ${P.stMin} min. Gruppene starter på hver sin stasjon og bytter til neste nummer når treneren blåser (${N} → 1).</td></tr>`);
+  t+=P.stTotal; rows.push(`<tr><td class="tm">${range(t,t+P.drink)} min</td><td><b>Drikkepause</b></td></tr>`);
+  t+=P.drink; rows.push(`<tr><td class="tm">${range(t,t+P.gameMin)} min</td><td><b>Spill:</b> <a href="#nx-card-game">${esc(P.game.title)}</a><div class="hint">${P.pitches} ${P.pitches===1?'bane':'baner'}, ingen innbyttere: ${esc(gameSummary(P))}. Bruk kjeglene fra stasjonene.</div></td></tr>`);
+  t+=P.gameMin; rows.push(`<tr><td class="tm"></td><td>Samling: «Hva var gøy i dag?»${P.T?` og «${['Hvem fikk spilt ballen fremover?','Hvem scoret eller prøvde å skyte?','Hvem vant ballen?','Hvem stoppet et skudd?'][w.t]}»`:''}</td></tr>`);
   const over=P.cost>P.balls;
   const drawing=stationsDrawing(P);
   const CP=coachPlan(P);
@@ -1503,6 +1509,7 @@ function render(){
   $('sessPanel').innerHTML=head+`<table class="plan"><tbody>${rows.join('')}</tbody></table>`+
     (P.sz.real?'':`<div class="note">Gruppene er ikke laget ennå. Planen regner med ${P.sz.n} spillere i ${N} grupper. Lag gruppene i «Trening», så ser du hvilken farge som starter på hvilken stasjon.</div>`)+
     (P.sz.real&&groupCountFor(NX_ENV.presentCount(),NX_ENV.settings().groups||5)!==N?`<div class="note">Det er ${NX_ENV.presentCount()} spillere på trening, men bare ${N} grupper. Med så mange bør det være ${groupCountFor(NX_ENV.presentCount(),NX_ENV.settings().groups||5)} grupper og like mange stasjoner. Trykk «Lag på nytt» under «Trening».</div>`:'')+
+    (P.gameMin<12?`<div class="note">Med ${N} stasjoner på ${P.total} minutter blir det bare ${P.gameMin} minutter spill. Velg 75 min, eller lag færre grupper.</div>`:'')+
     (N<4?`<div class="hint">Med få spillere blir det bare ${N} ${N===1?'gruppe':'grupper'}, og derfor ${N} ${N===1?'stasjon':'stasjoner'}.</div>`:'');
   const figure=(title,svg,extra,id,legend)=>`<article class="scard nx-fig"${id?` id="${id}"`:''}><div class="hd"><div style="display:flex;flex-direction:column;gap:4px"><div class="kick"><span class="stn">Oversikt</span>${P.T?`<span class="tag">${esc(P.T)}</span>`:''}</div><h3>${esc(title)}</h3>
     <div class="meta">${esc(dTxt(w.date,{weekday:'long',day:'numeric',month:'long'}))} · kvart 11er-bane, 52,5 × 34 m</div></div></div>${svg}${legend}${extra}</article>`;
