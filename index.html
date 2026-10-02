@@ -253,6 +253,10 @@ input[type=number]{font:600 18px var(--body);color:var(--ink);background:var(--s
 body.locked .wrap>*:not(.top):not(#lockView):not(#opening){display:none!important}
 body.locked #status{display:none}
 .acct{display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:center;align-items:center;padding-top:12px;font-size:13px;color:var(--muted)}
+.leadbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;padding:10px 12px;font-size:14px}
+.leadbar.other{background:var(--warn-soft);border-color:var(--warn)}
+.leadbar.none{background:var(--surface);border-color:var(--line)}
+.leadbar input{width:auto;flex:1 1 160px}
 </style>
 
 <div class="wrap">
@@ -279,6 +283,7 @@ body.locked #status{display:none}
     <button class="linkbtn" id="lockAdmin" type="button" style="align-self:flex-start">Logg inn som administrator</button>
   </form>
 
+  <div id="leadBar" class="leadbar hidden"></div>
   <div class="tabs" role="tablist">
     <button role="tab" id="tab-trening" aria-selected="true" data-tab="trening">Trening</button>
     <button role="tab" id="tab-ovelser" aria-selected="false" data-tab="ovelser">Dagens økt</button>
@@ -509,6 +514,7 @@ function loadLocal(){ try{ const x=JSON.parse(localStorage.getItem(LS)); return 
 function saveLocal(){ try{ localStorage.setItem(LS,JSON.stringify(S)); }catch(e){} }
 
 /* MODE: 'loading' | 'local' (bare denne nettleseren) | 'shared' (delt lagring, bare eieren skriver) */
+let forceSess=false;
 let MODE='loading', CAN=true, CANS=true, REF=null, REFS=null, SESS=null, lastM='', lastS='';
 let S=emptyState();
 let sel=null, selCtx='g', tab='trening', confirmKey=null;
@@ -516,12 +522,12 @@ let dirty=false, writing=false, saveTimer=null, changeNo=0;
 
 /* To dokumenter: team/main (spillere, nivåer, lag, innstillinger – bare eieren skriver)
    og session/current (oppmøte, grupper, historikk – eieren og trenere med Bidragsyter-tilgang skriver). */
-const sessPart=()=>({present:S.present||{},groups:S.groups||null,history:S.history||[],coachPresent:S.coachPresent||{}});
-const mainPart=()=>{const o=Object.assign({},S);delete o.present;delete o.groups;delete o.history;delete o.coachPresent;return o;};
+const sessPart=()=>({present:S.present||{},groups:S.groups||null,history:S.history||[],coachPresent:S.coachPresent||{},lead:S.lead||null});
+const mainPart=()=>{const o=Object.assign({},S);delete o.present;delete o.groups;delete o.history;delete o.coachPresent;delete o.lead;return o;};
 function save(){
   syncCurrent();
   if(MODE==='local'){ saveLocal(); return; }
-  if(MODE!=='shared'||(!CAN&&!CANS)) return;
+  if(MODE!=='shared'||(!CAN&&!CANS&&!forceSess)) return;
   if(CAN) saveLocal();
   dirty=true; changeNo++;
   clearTimeout(saveTimer); saveTimer=setTimeout(flushShared,600);
@@ -531,7 +537,7 @@ async function flushShared(){
   writing=true; const mine=changeNo; const now=new Date().toISOString();
   try{
     if(CAN&&REF){ const m=JSON.stringify(mainPart()); if(m!==lastM){ await REF.set(Object.assign(JSON.parse(m),{updatedAt:now})); lastM=m; } }
-    if(CANS&&REFS){ const x=JSON.stringify(sessPart()); if(x!==lastS){ await REFS.set(Object.assign(JSON.parse(x),{updatedAt:now})); lastS=x; } }
+    if((CANS||forceSess)&&REFS){ forceSess=false; const x=JSON.stringify(sessPart()); if(x!==lastS){ await REFS.set(Object.assign(JSON.parse(x),{updatedAt:now})); lastS=x; } }
     if(mine===changeNo) dirty=false;
   }catch(e){
     dirty=false;
@@ -540,7 +546,7 @@ async function flushShared(){
   }
   writing=false;
 }
-function applySess(d){ S.coachPresent=d.coachPresent||{}; S.present=d.present||{}; S.groups=d.groups||null; S.history=Array.isArray(d.history)?d.history:[]; }
+function applySess(d){ S.lead=d.lead||null; S.coachPresent=d.coachPresent||{}; S.present=d.present||{}; S.groups=d.groups||null; S.history=Array.isArray(d.history)?d.history:[]; }
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const byId=id=>S.players.find(p=>p.id===id);
@@ -987,13 +993,15 @@ function renderSettings(){
   levelSeg($('newLevel'),newLevel,l=>{newLevel=l;renderSettings();},S.settings.levels);
 }
 function render(){
+  if(MODE==='shared') CANS=CAN||leadIsMe();
+  renderLead();
   ensureTeams();
   document.body.classList.toggle('ro',!CAN);
   document.body.classList.toggle('nosess',!CANS);
   S.present=S.present||{}; if(!Array.isArray(S.history)) S.history=[];
   document.body.classList.toggle('loading',MODE==='loading');
   $('loader').classList.toggle('hidden',MODE!=='loading');
-  $('roNote').classList.toggle('hidden',CANS||MODE==='loading');
+  $('roNote').classList.add('hidden');
   $('emptyNote').classList.toggle('hidden',CAN||MODE==='loading'||S.players.length>0);
   const st=$('status');
   st.className='status'+(MODE==='shared'?' shared':'');
@@ -1729,6 +1737,46 @@ $('clearHist').onclick=()=>{ if(confirmKey!=='hist'){confirmKey='hist';renderSet
 $('resetAll').onclick=()=>{ if(confirmKey!=='reset'){confirmKey='reset';renderSettings();return;} try{localStorage.removeItem(LS);}catch(e){} S={players:[],present:{},settings:{groups:6,mix:'strict',levels:3},history:[],groups:null,sample:false}; confirmKey=null; save(); tab='spillere'; render(); };
 
 render();
+/* ---------- «Ansvarlig i dag»: bare én trener endrer oppmøte og grupper per dag ---------- */
+function todayLocal(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+const DEV=(()=>{let v=null;try{v=localStorage.getItem('g2018-dev');if(!v){v=Math.random().toString(36).slice(2,10);localStorage.setItem('g2018-dev',v);}}catch(e){v='ukjent';}return v;})();
+const myName=()=>{try{return localStorage.getItem('g2018-navn')||'';}catch(e){return '';}};
+const leadToday=()=>S&&S.lead&&S.lead.day===todayLocal()?S.lead:null;
+const leadIsMe=()=>{const l=leadToday();return !!(l&&l.dev===DEV);};
+let leadArm=false, leadPick=false;
+function claimLead(name){
+  name=String(name||'').trim().slice(0,40); if(!name){ leadPick=true; render(); return; }
+  try{localStorage.setItem('g2018-navn',name);}catch(e){}
+  S.lead={name,dev:DEV,day:todayLocal()}; leadPick=false; leadArm=false; forceSess=true; save(); render();
+}
+function releaseLead(){ S.lead=null; leadArm=false; forceSess=true; save(); render(); }
+function renderLead(){
+  const el=$('leadBar'); if(!el) return;
+  if(MODE!=='shared'){ el.classList.add('hidden'); return; }
+  el.classList.remove('hidden','other','none');
+  const l=leadToday(), me=leadIsMe();
+  if(leadPick){
+    const names=((S.teams&&S.teams.coaches)||[]).map(c=>c.name).filter(Boolean);
+    el.innerHTML=`<span>Hva heter du? Navnet vises for de andre trenerne.</span><input id="leadName" list="leadNames" placeholder="Navnet ditt" value="${esc(myName())}"><datalist id="leadNames">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist><button class="btn small" id="leadOk" type="button">Ta ansvar</button><button class="btn small" id="leadCancel" type="button">Avbryt</button>`;
+    $('leadOk').onclick=()=>claimLead($('leadName').value);
+    $('leadName').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();claimLead($('leadName').value);}};
+    $('leadCancel').onclick=()=>{leadPick=false;render();};
+    return;
+  }
+  if(!l){
+    el.classList.add('none');
+    el.innerHTML=`<span>Ingen har tatt ansvar for gruppene i dag.${CAN?'':' Oppmøte og grupper er låst til noen gjør det.'}</span><button class="btn small primary" id="leadClaim" type="button">Jeg lager gruppene i dag</button>`;
+    $('leadClaim').onclick=()=>{ const n=myName(); if(n) claimLead(n); else { leadPick=true; render(); } };
+  } else if(me){
+    el.innerHTML=`<span><b>Du (${esc(l.name)})</b> lager gruppene i dag. De andre trenerne ser endringene dine med en gang.</span><span class="row" style="gap:12px"><button class="linkbtn" id="leadRename" type="button">Bytt navn</button><button class="btn small" id="leadRelease" type="button">Slipp ansvaret</button></span>`;
+    $('leadRelease').onclick=releaseLead;
+    $('leadRename').onclick=()=>{leadPick=true;render();};
+  } else {
+    el.classList.add('other');
+    el.innerHTML=`<span><b>${esc(l.name)}</b> lager gruppene i dag. Du ser endringene med en gang.${CAN?' Som administrator kan du likevel endre.':''}</span><button class="btn small" id="leadTake" type="button">${leadArm?'Trykk igjen for å ta over':'Ta over'}</button>`;
+    $('leadTake').onclick=()=>{ if(!leadArm){ leadArm=true; render(); setTimeout(()=>{ if(leadArm){ leadArm=false; render(); } },5000); return; } const n=myName(); if(n) claimLead(n); else { leadArm=false; leadPick=true; render(); } };
+  }
+}
 /* ---------- Firebase: delt lagring for alle trenere ---------- */
 const FB_CFG={apiKey:"AIzaSyA5OdW9FBQHitJUzlNvwVXZvLlxFjLT5WI",authDomain:"g2018-trening.firebaseapp.com",projectId:"g2018-trening",storageBucket:"g2018-trening.firebasestorage.app",messagingSenderId:"226616221100",appId:"1:226616221100:web:6edb82cd791be47c0cae09"};
 const ADMIN_EMAIL='g2018.manglerud@gmail.com';
@@ -1864,7 +1912,7 @@ function startShared(owner){
     if(CAN && (dirty || writing || snap.metadata.hasPendingWrites)) { startSession(); return; }
     const cur=JSON.parse(JSON.stringify(data)); delete cur.updatedAt;
     if(!validState(cur)) { startSession(); return; }
-    cur.coachPresent=S.coachPresent||{}; cur.present=S.present||{}; cur.groups=S.groups||null; cur.history=Array.isArray(S.history)?S.history:[];
+    cur.lead=S.lead||null; cur.coachPresent=S.coachPresent||{}; cur.present=S.present||{}; cur.groups=S.groups||null; cur.history=Array.isArray(S.history)?S.history:[];
     S=cur; lastM=JSON.stringify(mainPart()); if(CAN) saveLocal(); render(); startSession();
   },lostConn);
   render();
