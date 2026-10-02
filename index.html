@@ -273,6 +273,8 @@ body.locked #status{display:none}
     <input type="password" id="codeBox" name="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Lagkode">
     <button class="btn primary" id="unlockBtn" type="submit">Åpne</button>
     <div class="err" id="codeErr" role="alert"></div>
+    <div id="createBox" class="ok hidden" style="display:flex;flex-direction:column;gap:10px"><span id="createMsg"></span><div class="row"><button class="btn primary" id="createYes" type="button">Opprett laget</button><button class="btn" id="createNo" type="button">Avbryt</button></div></div>
+    <div id="adminState" class="ok hidden"></div>
     <div class="hint">Tips: Legg siden til på hjemskjermen (Del → «Legg til på Hjem-skjerm»), så får du den som en app.</div>
     <button class="linkbtn" id="lockAdmin" type="button" style="align-self:flex-start">Logg inn som administrator</button>
   </form>
@@ -1796,13 +1798,15 @@ async function adminLogin(){
       throw e;
     }
     const u=FB.auth.currentUser;
-    if(!isAdminUser(u)){ await FB.auth.signOut(); alert('Den kontoen er ikke administrator for laget. Logg inn med lagkontoen.'); }
+    if(!isAdminUser(u)){ await FB.auth.signOut(); $('codeErr').textContent='Den kontoen er ikke administrator for laget. Logg inn med lagkontoen.'; return; }
     location.reload();
-  }catch(e){ alert('Innloggingen virket ikke: '+((e&&e.message)||e)); }
+  }catch(e){ $('codeErr').textContent='Innloggingen virket ikke: '+((e&&e.message)||e); }
 }
 async function adminLogout(){ try{ await initFirebase(); await FB.auth.signOut(); }catch(e){} location.reload(); }
 
+let pendingCreate=null;
 async function connect(code,quiet){
+  $('createBox').classList.add('hidden');
   $('lockView').classList.add('hidden'); $('opening').classList.remove('hidden');
   let key;
   try{ key=await teamKey(code); await initFirebase(); }
@@ -1814,7 +1818,7 @@ async function connect(code,quiet){
   try{ exists=!!(await REF.get()); }
   catch(e){ exists=null; }
   if(exists===false && !owner){ try{localStorage.removeItem(LS_CODE);}catch(e){} showLock('Fant ikke laget. Sjekk lagkoden og prøv igjen.'); return; }
-  if(exists===false && owner && !quiet && !confirm('Det finnes ikke noe lag med denne koden ennå. Vil du opprette et nytt lag med koden «'+code+'»?')){ showLock(''); return; }
+  if(exists===false && owner && !quiet){ showLock(''); pendingCreate=code; $('createMsg').textContent='Det finnes ikke noe lag med koden «'+code+'» ennå. Vil du opprette det? Trenerne bruker den samme koden for å komme inn.'; $('createBox').classList.remove('hidden'); return; }
   if(exists===null && !quiet){ try{localStorage.removeItem(LS_CODE);}catch(e){} showLock('Fikk ikke åpnet laget. Sjekk lagkoden og nettet.'); return; }
   try{localStorage.setItem(LS_CODE,code);}catch(e){}
   document.body.classList.remove('locked'); $('opening').classList.add('hidden');
@@ -1887,8 +1891,11 @@ $('lockBtn').onclick=()=>{
 };
 (function boot(){
   let saved=null; try{ saved=localStorage.getItem(LS_CODE); }catch(e){}
-  if(saved) connect(saved,true); else showLock('');
+  if(saved) connect(saved,true);
+  else { showLock(''); initFirebase().then(currentUser).then(u=>{ if(isAdminUser(u)){ $('adminState').textContent='Du er innlogget som administrator ('+u.email+'). Skriv inn lagkoden for å fortsette.'; $('adminState').classList.remove('hidden'); $('lockAdmin').textContent='Logg ut som administrator'; $('lockAdmin').onclick=adminLogout; } }).catch(()=>{}); }
 })();
+$('createYes').onclick=()=>{ const c=pendingCreate; pendingCreate=null; $('createBox').classList.add('hidden'); if(c) connect(c,true); };
+$('createNo').onclick=()=>{ pendingCreate=null; $('createBox').classList.add('hidden'); };
 
 })();
 </script>
