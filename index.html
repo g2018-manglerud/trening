@@ -280,7 +280,7 @@ body.locked #status{display:none}
     <div id="createBox" class="ok hidden" style="display:flex;flex-direction:column;gap:10px"><span id="createMsg"></span><div class="row"><button class="btn primary" id="createYes" type="button">Opprett laget</button><button class="btn" id="createNo" type="button">Avbryt</button></div></div>
     <div id="adminState" class="ok hidden"></div>
     <div class="hint">Tips: Legg siden til på hjemskjermen (Del → «Legg til på Hjem-skjerm»), så får du den som en app.</div>
-    <button class="linkbtn" id="lockAdmin" type="button" style="align-self:flex-start">Logg inn som administrator</button>
+    <div class="row" style="gap:18px"><a class="linkbtn" href="hjelp.html">Slik bruker du appen</a><button class="linkbtn" id="lockAdmin" type="button">Logg inn som administrator</button></div>
   </form>
 
   <div id="leadBar" class="leadbar hidden"></div>
@@ -486,7 +486,7 @@ body.locked #status{display:none}
       <div class="row"><button class="btn danger" id="resetAll">Slett alt</button></div>
     </div>
   </section>
-  <div class="acct" id="acctRow"><span id="acctInfo"></span><button class="linkbtn" id="adminBtn" type="button">Logg inn som administrator</button><button class="linkbtn" id="lockBtn" type="button">Glem lagkoden på denne telefonen</button></div>
+  <div class="acct" id="acctRow"><span id="acctInfo"></span><a class="linkbtn" href="hjelp.html">Slik bruker du appen</a><button class="linkbtn" id="adminBtn" type="button">Logg inn som administrator</button><button class="linkbtn" id="lockBtn" type="button">Glem lagkoden på denne telefonen</button></div>
   <div id="selBar" class="stick hidden"><span id="selText"></span><button id="selCancel">Avbryt</button></div>
 </div>
 

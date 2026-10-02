@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Slik bruker du appen – G2018 Trening</title>
+<meta name="theme-color" content="#1F6B46">
+<meta name="robots" content="noindex">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --ground:#EDF1EB; --surface:#FFFFFF; --surface-2:#F5F8F3; --ink:#17211B; --muted:#5A675E;
+  --line:#D3DBD1; --accent:#1F6B46; --accent-ink:#FFFFFF; --accent-soft:#DDEDE3; --warn:#9A5B00; --warn-soft:#FBEFD9;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif; --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--ground:#0F1411; --surface:#18201B; --surface-2:#1E2721; --ink:#E6ECE5; --muted:#98A59B;
+    --line:#2D3830; --accent:#5CC48D; --accent-ink:#0B1A11; --accent-soft:#1D3527; --warn:#F0B558; --warn-soft:#33260F;}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:720px;margin:0 auto;padding:20px 16px 60px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;letter-spacing:.01em;text-wrap:balance}
+h1{font-size:32px;line-height:1.05}
+h2{font-size:24px}
+h3{font-size:19px}
+.sub{color:var(--muted)}
+a{color:var(--accent)}
+.back{display:inline-flex;align-items:center;gap:6px;font-weight:600;text-decoration:none;background:var(--accent);color:var(--accent-ink);padding:9px 14px;border-radius:8px;align-self:flex-start}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.panel p{margin:0}
+ol.steps{margin:0;padding:0;list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:12px}
+ol.steps>li{counter-increment:s;display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start}
+ol.steps>li::before{content:counter(s);width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font:700 15px var(--body);display:flex;align-items:center;justify-content:center}
+ol.steps b{display:block}
+ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.btn{display:inline-block;font:600 14px var(--body);border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:0 6px;white-space:nowrap}
+.tip{background:var(--accent-soft);border-radius:8px;padding:10px 12px}
+.warn{background:var(--warn-soft);border-radius:8px;padding:10px 12px}
+.label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+details{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+details>summary{cursor:pointer;padding:16px 18px;font-family:var(--display);font-weight:700;font-size:22px;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px}
+details>summary::-webkit-details-marker{display:none}
+details>summary::after{content:"+";font-size:26px;color:var(--muted)}
+details[open]>summary::after{content:"–"}
+details .inner{padding:0 18px 18px;display:flex;flex-direction:column;gap:14px}
+.toc{display:flex;flex-wrap:wrap;gap:6px}
+.toc a{text-decoration:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font-weight:500;font-size:14px}
+@media print{body{background:#fff}.back,.toc{display:none}details{border:0}details>summary::after{content:""}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./">← Tilbake til appen</a>
+  <div>
+    <h1>Slik bruker du appen</h1>
+    <div class="sub">G2018 Trening · for trenerne på laget</div>
+  </div>
+
+  <nav class="toc" aria-label="Innhold">
+    <a href="#start">Kom i gang</a><a href="#for">Før treningen</a><a href="#felt">På feltet</a><a href="#ansvar">Hvem lager gruppene</a><a href="#feil">Hvis noe er rart</a>
+  </nav>
+
+  <section class="panel" id="start">
+    <h2>Kom i gang (bare første gang)</h2>
+    <ol class="steps">
+      <li><span><b>Åpne lenken på telefonen</b>g2018-manglerud.github.io/trening</span></li>
+      <li><span><b>Skriv inn lagkoden</b>Du får den av hovedtreneren. Telefonen husker den, så du trenger bare å skrive den én gang.</span></li>
+      <li><span><b>Legg appen på hjemskjermen</b>iPhone: trykk Del-knappen (firkanten med pil opp) i Safari og velg «Legg til på Hjem-skjerm». Android: trykk menyen (tre prikker) i Chrome og velg «Legg til på startskjermen».</span></li>
+    </ol>
+    <div class="tip">Du trenger ingen konto eller innlogging. Alt du og de andre trenerne gjør, vises for alle med en gang.</div>
+  </section>
+
+  <section class="panel" id="for">
+    <h2>Før treningen</h2>
+    <ol class="steps">
+      <li><span><b>Åpne fanen <span class="btn">Dagens økt</span></b>Her står ukas tema, hva du skal si til barna, og stasjonene med tegning og forklaring.</span></li>
+      <li><span><b>Les kortet for stasjonen din</b>Hver trener har sin faste stasjon gjennom perioden (4–6 uker). Navnet ditt står ved stasjonen når hovedtreneren har huket deg av som til stede.</span></li>
+      <li><span><b>Les én stasjon til</b>Da kan du ta over hvis en annen trener ikke kommer.</span></li>
+    </ol>
+    <div class="tip">Hvert kort har en tegning, tre steg, «Si dette» til barna, og en enklere og en vanskeligere variant. Det tar et par minutter å lese.</div>
+  </section>
+
+  <section class="panel" id="felt">
+    <h2>På feltet: lage grupper</h2>
+    <p>Dette gjør <b>én</b> trener, den som lager gruppene den dagen.</p>
+    <ol class="steps">
+      <li><span><b>Trykk <span class="btn">Jeg lager gruppene i dag</span></b>Øverst i appen. Første gang skriver du navnet ditt.</span></li>
+      <li><span><b>Huk av trenerne som er der</b>Under «Trenere på trening». Hver trener får da sin stasjon i «Dagens økt».</span></li>
+      <li><span><b>Marker hvem som kom</b>Trykk <span class="btn">Lim inn fra Spond</span> og lim inn ja-listen, eller trykk på navnene. Et grønt hakk betyr at spilleren er her. Trykk igjen for å fjerne.</span></li>
+      <li><span><b>Trykk <span class="btn">Lag grupper</span></b>Appen lager grupper med spillere på omtrent samme nivå, og passer på at de samme ikke alltid havner sammen.</span></li>
+      <li><span><b>Juster hvis du vil</b>Trykk på en spiller og så på en annen for å bytte dem, eller trykk <span class="btn">Flytt hit</span> på en annen gruppe. Kommer noen for sent, marker dem som til stede og trykk «Tildel gruppe automatisk». Da blir de andre gruppene som de er.</span></li>
+      <li><span><b>Gå til <span class="btn">Dagens økt</span></b>Der ser du hvilken farge som starter på hvilken stasjon. Gruppene bytter til neste stasjon når treneren blåser.</span></li>
+      <li><span><b>Trykk <span class="btn">Lagre som brukt</span> etter treningen</b>Da husker appen hvem som var sammen, og blander annerledes neste gang.</span></li>
+    </ol>
+    <div class="tip">Ikke nok tid? Du kan også trykke <span class="btn">Kopier oppsett</span> og lime gruppene inn i Spond eller en melding.</div>
+  </section>
+
+  <section class="panel" id="ansvar">
+    <h2>Hvem lager gruppene?</h2>
+    <ul>
+      <li>Bare den som har trykket <span class="btn">Jeg lager gruppene i dag</span> kan endre oppmøte og grupper den dagen. Det hindrer at to trenere overskriver hverandre.</li>
+      <li>De andre trenerne ser alt live. Øverst står det for eksempel «Per lager gruppene i dag».</li>
+      <li>Mangler den som har ansvaret? Trykk <span class="btn">Ta over</span> to ganger.</li>
+      <li>Er du ferdig, eller må du gå? Trykk <span class="btn">Slipp ansvaret</span>.</li>
+      <li>Ansvaret gjelder bare den dagen. Neste trening starter på nytt.</li>
+    </ul>
+  </section>
+
+  <section class="panel" id="feil">
+    <h2>Hvis noe er rart</h2>
+    <ul>
+      <li><b>Ser du ikke de nyeste endringene?</b> Lukk appen helt og åpne den igjen.</li>
+      <li><b>«Fant ikke laget»?</b> Lagkoden er skrevet feil. Store og små bokstaver spiller ingen rolle, men bindestreker og mellomrom må være med.</li>
+      <li><b>Knappene er borte?</b> Da er det en annen trener som lager gruppene i dag. Trykk <span class="btn">Ta over</span> hvis du skal gjøre det.</li>
+      <li><b>Ny telefon?</b> Åpne lenken og skriv inn lagkoden på nytt.</li>
+      <li>Fortsatt rart? Si fra til hovedtreneren.</li>
+    </ul>
+  </section>
+
+  <details id="admin">
+    <summary>For administrator (hovedtreneren)</summary>
+    <div class="inner">
+      <p>Som administrator ser du også fanene Årshjul, Lag, Spillere og Innstillinger, og du kan alltid endre, uansett hvem som har ansvaret for gruppene.</p>
+      <div>
+        <div class="label">Logge inn</div>
+        <p>Trykk <span class="btn">Logg inn som administrator</span> nederst i appen og velg lagkontoen (g2018.manglerud@gmail.com). Det fungerer best på datamaskinen, eller i Safari/Chrome på telefonen. Nederst står det «Administrator» når du er innlogget.</p>
+      </div>
+      <div>
+        <div class="label">Spillere</div>
+        <p>Legg til, endre eller fjern spillere og sett nivå. Nivå 1 er sterkest, og ½ betyr at spilleren kan gå i begge nivåene. Bare du ser nivåene.</p>
+      </div>
+      <div>
+        <div class="label">Årshjul</div>
+        <p>Viser temaperiodene og hvilket tema som gjelder nå. Temaet velges automatisk, men du kan bytte tema for en periode. Legg inn hvor mange baller dere har, så velger appen bare øvelser dere har utstyr til.</p>
+      </div>
+      <div>
+        <div class="label">Lag</div>
+        <p>Lager like sterke lag til kamp og cup. Under «Trenere og barn» legger du inn trenerne, og hvilket barn hver trener har. Trenernavnene brukes også i «Trenere på trening» og på stasjonene.</p>
+      </div>
+      <div>
+        <div class="label">Innstillinger</div>
+        <p>Antall grupper (største antall), nivådeling og antall nivåer. «Glem historikken» nullstiller hvem som har vært sammen. «Slett alt» sletter hele laget for alle, så den må du være forsiktig med.</p>
+      </div>
+      <div>
+        <div class="label">Dele med nye trenere</div>
+        <p>Send lenken og lagkoden, og legg gjerne lenken til denne siden ved: g2018-manglerud.github.io/trening/hjelp.html</p>
+      </div>
+      <div class="warn">Bytter dere lagkode, opprettes et nytt, tomt lag. Kontakt Claude først, så kan dataene flyttes.</div>
+    </div>
+  </details>
+
+  <a class="back" href="./">← Tilbake til appen</a>
+</div>
+</body>
+</html>
