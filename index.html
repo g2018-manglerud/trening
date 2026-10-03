@@ -76,6 +76,16 @@ textarea{min-height:120px;resize:vertical}
 .grp ul{list-style:none;margin:0;padding:8px;display:flex;flex-direction:column;gap:2px}
 .grp li button{width:100%;text-align:left;border:1px solid transparent;background:transparent;color:var(--ink);font:500 15px var(--body);padding:7px 8px;border-radius:7px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .grp li button:hover{background:var(--surface-2)}
+.goto{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.goto-btn{width:100%;font-size:20px!important;padding:16px 20px!important;display:flex;justify-content:space-between;align-items:center;border-radius:12px!important;box-shadow:0 3px 10px rgba(0,0,0,.12)}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;justify-content:center}
+.sheet-box{background:var(--surface);color:var(--ink);width:100%;max-width:440px;border-radius:14px 14px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px}
+.sheet-name{font-family:var(--display);font-weight:700;font-size:22px}
+.sheet-box .btn{font-size:16px;padding:13px}
+.sheet-box .linkbtn{background:none;border:0;color:var(--muted);font:600 15px var(--body);padding:8px;cursor:pointer}
+.grp li button.absent{color:var(--muted);opacity:.55}
+.grp li button.absent .pn{text-decoration:line-through}
+.grp li .away{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .grp li button.selected{background:var(--sel);color:#241C02;border-color:#C99E12}
 .grp li .lv{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .grp li button.selected .lv{color:#241C02}
@@ -292,7 +302,7 @@ body.locked #status{display:none}
 
   <div id="leadBar" class="leadbar hidden"></div>
   <div class="tabs" role="tablist">
-    <button role="tab" id="tab-trening" aria-selected="true" data-tab="trening">Trening</button>
+    <button role="tab" id="tab-trening" aria-selected="true" data-tab="trening">Grupper</button>
     <button role="tab" id="tab-ovelser" aria-selected="false" data-tab="ovelser">Dagens økt</button>
     <button role="tab" id="tab-aarshjul" class="edit-only" aria-selected="false" data-tab="aarshjul">Årshjul</button>
     <button role="tab" id="tab-lag" class="edit-only" aria-selected="false" data-tab="lag">Lag</button>
@@ -306,44 +316,41 @@ body.locked #status{display:none}
 
   <div id="sampleNote" class="note hidden"><b>Eksempelspillere.</b> Navnene og nivåene er oppdiktet så du kan prøve verktøyet. Gå til «Spillere» for å legge inn laget ditt.</div>
 
-  <!-- TRENING -->
+  <!-- GRUPPER -->
   <section id="view-trening" style="display:flex;flex-direction:column;gap:18px">
     <div class="panel" id="coachAtt" style="gap:8px"></div>
     <div class="panel">
       <div class="row spread">
         <div>
-          <div class="label">Kommer på trening</div>
+          <div class="label">Til stede i dag</div>
           <div class="count" id="presentCount">0</div>
         </div>
         <div class="row sess-only">
-          <button class="btn small" id="allBtn">Alle</button>
-          <button class="btn small" id="noneBtn">Ingen</button>
+          <button class="btn small" id="allBtn">Alle til stede</button>
           <button class="btn small" id="pasteToggle">Lim inn fra Spond</button>
         </div>
       </div>
       <div id="pastePanel" class="hidden" style="display:flex;flex-direction:column;gap:8px">
-        <label class="hint" for="pasteBox">Kopier navnene til de som har svart ja i Spond og lim dem inn her, ett navn per linje eller skilt med komma.</label>
+        <label class="hint" for="pasteBox">Kopier navnene til de som har svart ja i Spond og lim dem inn her, ett navn per linje eller skilt med komma. De andre blir merket borte.</label>
         <textarea id="pasteBox" placeholder="Emil Hansen&#10;Noah Berg&#10;…"></textarea>
-        <div class="row"><button class="btn" id="pasteApply">Marker disse som påmeldt</button></div>
+        <div class="row"><button class="btn" id="pasteApply">Marker disse som til stede</button></div>
         <div id="pasteResult"></div>
       </div>
-      <div id="attendance" style="display:flex;flex-direction:column;gap:12px"></div>
-      <div class="hint sess-only">Trykk på et navn for å markere at spilleren ikke kommer, eller kommer likevel.</div>
-    </div>
-
-    <div class="row">
-      <button class="btn primary sess-only" id="genBtn">Lag grupper</button>
-      <button class="btn sess-only" id="regenBtn">Lag på nytt</button>
-      <button class="btn sess-only" id="saveBtn">Lagre som brukt</button>
-      <button class="btn" id="copyBtn">Kopier oppsett</button>
+      
+      <div id="attendance" class="hidden"></div><button type="button" id="noneBtn" hidden></button>
     </div>
     <div id="msg"></div>
-    <textarea id="copyFallback" class="hidden" readonly></textarea>
-
+    <div class="ok" id="groupHint" style="font-size:14px"></div>
     <div id="unassigned"></div>
     <div class="groups" id="groups"></div>
-    <div class="hint" id="groupHint"></div>
-    <div class="row"><button class="btn small" id="toExercises">Se dagens økt →</button></div>
+    <div class="row">
+      <button class="btn primary sess-only" id="genBtn">Lag grupper</button>
+      <button class="btn sess-only" id="regenBtn">Lag nye grupper</button>
+      <button class="btn sess-only hidden" id="saveBtn" hidden>Lagre som brukt</button>
+      <button class="btn" id="copyBtn">Kopier oppsett</button>
+    </div>
+    <textarea id="copyFallback" class="hidden" readonly></textarea>
+    <div class="goto"><div class="label">Gå til</div><button class="btn primary goto-btn" id="toExercises">Dagens økt <span aria-hidden="true">→</span></button></div>
   </section>
 
   <!-- ØVELSER -->
@@ -477,7 +484,7 @@ body.locked #status{display:none}
     <div class="panel">
       <h2>Variasjon</h2>
       <div id="histInfo"></div>
-      <div class="hint">Når du trykker «Lagre som brukt», husker verktøyet hvem som var sammen. Ved neste trening prøver det å unngå de samme parene. De siste 10 øktene teller, og nyere økter teller mest.</div>
+      <div class="hint">Etter hver trening husker verktøyet av seg selv hvem som var i gruppe sammen (bare de som var til stede). Når du lager nye grupper, prøver det å unngå de samme parene. De siste 10 treningene teller, og nyere treninger teller mest.</div>
       <div class="row"><button class="btn danger" id="clearHist">Glem historikken</button></div>
     </div>
     <div class="panel">
@@ -494,6 +501,11 @@ body.locked #status{display:none}
     </div>
   </section>
   <div class="acct" id="acctRow"><span id="acctInfo"></span><button class="linkbtn" id="adminBtn" type="button">Logg inn som administrator</button><button class="linkbtn" id="lockBtn" type="button">Glem lagkoden på denne telefonen</button></div>
+  <div id="pAct" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="pActName"><div class="sheet-box">
+    <div class="sheet-name" id="pActName"></div>
+    <button type="button" class="btn" id="pActAway">Ikke til stede</button>
+    <button type="button" class="btn" id="pActMove">Flytt eller bytt spiller</button>
+    <button type="button" class="linkbtn" id="pActCancel">Avbryt</button></div></div>
   <div id="selBar" class="stick hidden"><span id="selText"></span><button id="selCancel">Avbryt</button></div>
 </div>
 
@@ -529,8 +541,8 @@ let dirty=false, writing=false, saveTimer=null, changeNo=0;
 
 /* To dokumenter: team/main (spillere, nivåer, lag, innstillinger – bare eieren skriver)
    og session/current (oppmøte, grupper, historikk – eieren og trenere med Bidragsyter-tilgang skriver). */
-const sessPart=()=>({present:S.present||{},groups:S.groups||null,history:S.history||[],coachPresent:S.coachPresent||{},lead:S.lead||null});
-const mainPart=()=>{const o=Object.assign({},S);delete o.present;delete o.groups;delete o.history;delete o.coachPresent;delete o.lead;return o;};
+const sessPart=()=>({present:S.present||{},presentDay:S.presentDay||null,groups:S.groups||null,groupLevels:S.groupLevels||null,history:S.history||[],coachPresent:S.coachPresent||{},lead:S.lead||null});
+const mainPart=()=>{const o=Object.assign({},S);delete o.present;delete o.groups;delete o.history;delete o.coachPresent;delete o.lead;delete o.presentDay;delete o.groupLevels;return o;};
 function save(){
   syncCurrent();
   if(MODE==='local'){ saveLocal(); return; }
@@ -553,7 +565,7 @@ async function flushShared(){
   }
   writing=false;
 }
-function applySess(d){ S.lead=d.lead||null; S.coachPresent=d.coachPresent||{}; S.present=d.present||{}; S.groups=d.groups||null; S.history=Array.isArray(d.history)?d.history:[]; }
+function applySess(d){ S.groupLevels=d.groupLevels||null; S.presentDay=d.presentDay||null; S.lead=d.lead||null; S.coachPresent=d.coachPresent||{}; S.present=d.present||{}; S.groups=d.groups||null; S.history=Array.isArray(d.history)?d.history:[]; }
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const byId=id=>S.players.find(p=>p.id===id);
@@ -579,8 +591,9 @@ const MIN_GROUP=5, MAX_GROUP=10;
 const groupCountFor=(n,want)=>{ let G=Math.max(1,Math.min(want,Math.floor(n/MIN_GROUP))); if(n/G>MAX_GROUP) G=Math.ceil(n/MAX_GROUP); return G; };
 function groupNote(n,want){ const G=groupCountFor(n,want); return G<want?`${n} spillere gir ${G} ${G===1?'gruppe':'grupper'} i stedet for ${want}, så hver gruppe får minst ${MIN_GROUP} spillere.`:G>want?`${n} spillere gir ${G} grupper i stedet for ${want}, så ingen gruppe får mer enn ${MAX_GROUP} spillere.`:''; }
 function sizes(n,g){const b=Math.floor(n/g),r=n%g;return Array.from({length:g},(_,i)=>b+(i<r?1:0));}
+/* Gruppene lages med hele stallen. Hvem som er borte en dag, merkes i gruppene og påvirker ikke inndelingen. */
 function generate(includeCurrent){
-  const ps=presentPlayers(); const n=ps.length;
+  const ps=S.players.slice(); const n=ps.length;
   if(n===0){S.groups=null;return;}
   const G=groupCountFor(n,S.settings.groups); const sz=sizes(n,G);
   const strict=S.settings.mix==='strict';
@@ -605,15 +618,16 @@ function generate(includeCurrent){
   const out=best.map(g=>g.map(p=>p.id));
   for(let i=out.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[out[i],out[j]]=[out[j],out[i]];}
   S.groups=out;
+  S.groupLevels={}; S.players.forEach(p=>S.groupLevels[p.id]=p.level);
 }
 function cleanGroups(){
   if(!S.groups) return;
-  S.groups=S.groups.map(g=>g.filter(id=>byId(id)&&S.present[id]));
+  S.groups=S.groups.map(g=>g.filter(id=>byId(id)));
 }
 function unassignedPlayers(){
   if(!S.groups) return [];
   const inG=new Set(S.groups.flat());
-  return presentPlayers().filter(p=>!inG.has(p.id));
+  return S.players.filter(p=>!inG.has(p.id));
 }
 
 /* ---------- rendering ---------- */
@@ -655,10 +669,26 @@ function renderAvail(box,map,after,ED){
     row.appendChild(lc);c.appendChild(row);});
   box.appendChild(c);
 }
+let gMode='att', actId=null;
+function openAct(id){ actId=id; $('pActName').textContent=byId(id).name; $('pAct').classList.remove('hidden'); $('pActAway').focus(); }
+function closeAct(){ actId=null; $('pAct').classList.add('hidden'); }
+/* Ny dag: alle regnes som til stede igjen, så det bare er de som mangler som må trykkes bort. */
+function dailyReset(){
+  if(MODE==='loading'||!CANS||!S.groups) return;
+  const td=todayStr(); if(S.presentDay===td) return;
+  /* Lagre forrige trening automatisk: gruppene slik de var den dagen, med bare de som var til stede. */
+  if(S.presentDay){ const T=todayGroups(); const day=S.presentDay;
+    if(T&&!(S.history||[]).some(h=>String(h.date).slice(0,10)===day)){
+      const gs=T.eff.map(g=>g.ids).filter(g=>g.length>1);
+      if(gs.length){ S.history=(S.history||[]).concat([{date:day+'T12:00:00.000Z',groups:gs,auto:true}]).slice(-10); } } }
+  S.present={}; S.players.forEach(p=>S.present[p.id]=true); S.presentDay=td; save();
+}
 function renderAttendance(){
-  renderAvail($('attendance'),S.present,cleanGroups,CANS);
+  $('attendance').innerHTML='';
   const n=presentPlayers().length;
   $('presentCount').innerHTML=`${n} <small>av ${S.players.length} spillere</small>`;
+  $('genBtn').classList.toggle('hidden',!!S.groups); $('regenBtn').classList.toggle('hidden',!S.groups);
+  $('regenBtn').textContent=confirmKey==='regen'?'Bekreft: lag nye grupper':'Lag nye grupper';
 }
 /* Felles kort for grupper (ctx 'g') og lag (ctx 't') */
 function unassignedNote(box,un,ctx,what){
@@ -666,7 +696,7 @@ function unassignedNote(box,un,ctx,what){
   const d=document.createElement('div');d.className='note';
   const ED=ctx==='g'?CANS:CAN;
   const G=ctx==='g';
-  d.innerHTML=G?`<b>${un.length===1?'1 spiller er':un.length+' spillere er'} påmeldt etter at gruppene ble laget.</b> De andre gruppene blir som de er. `
+  d.innerHTML=G?`<b>${un.length===1?'1 spiller er':un.length+' spillere er'} ikke i noen gruppe ennå.</b> De andre blir der de er. `
     :`<b>${un.length} ${what}</b> `+(ED?'Trykk på navnet og deretter «Flytt hit», eller lag på nytt. ':'');
   un.forEach(p=>{const b=document.createElement('button');b.type='button';b.className='chip';b.setAttribute('aria-pressed','true');b.style.margin='4px 4px 0 0';
     b.innerHTML=`${CAN?dot(p.level):''}${esc(p.name)}`; if(sel===p.id&&selCtx===ctx){b.style.outline='2px solid var(--sel)';}
@@ -686,32 +716,91 @@ function playerList(g,ctx){
   const ul=document.createElement('ul');
   g.map(byId).sort((a,b)=>(CAN&&ctx==='t'?a.level-b.level:0)||a.name.localeCompare(b.name,'nb')).forEach(p=>{
     const li=document.createElement('li');const b=document.createElement('button');b.type='button';
-    if(sel===p.id&&selCtx===ctx)b.className='selected';
-    b.innerHTML=!CAN?`<span>${esc(p.name)}</span>`:ctx==='g'?`<span>${dot(p.level)}${esc(p.name)}</span>`:`<span>${dot(p.level)}${esc(p.name)}</span><span class="lv">Nivå ${fmt(p.level)}</span>`;
-    b.disabled=!(ctx==='g'?CANS:CAN); b.onclick=()=>pick(p.id,ctx);li.appendChild(b);ul.appendChild(li);});
+    const away=ctx==='g'&&!S.present[p.id];
+    b.className=(sel===p.id&&selCtx===ctx?'selected ':'')+(away?'absent':'');
+    const fr=ctx==='g'&&!away&&effFrom[p.id]!==undefined?'<span class="away">flyttet i dag</span>':'';
+    b.innerHTML=!CAN?`<span class="pn">${esc(p.name)}</span>${away?'<span class="away">borte</span>':fr}`:ctx==='g'?`<span>${dot(p.level)}<span class="pn">${esc(p.name)}</span></span>${away?'<span class="away">borte</span>':fr}`:`<span>${dot(p.level)}${esc(p.name)}</span><span class="lv">Nivå ${fmt(p.level)}</span>`;
+    b.disabled=!(ctx==='g'?CANS:CAN);
+    b.onclick=()=>{
+      if(ctx!=='g'){ pick(p.id,ctx); return; }
+      if(sel&&selCtx==='g'){ pick(p.id,'g'); return; }          /* en spiller er valgt for flytting: bytt */
+      if(away){ S.present[p.id]=true; save(); render(); return; } /* kom likevel */
+      openAct(p.id); };
+    li.appendChild(b);ul.appendChild(li);});
   return ul;
 }
 function moveBtn(foot,g,gi,ctx){
   if(sel && selCtx===ctx && !g.includes(sel)){const m=document.createElement('button');m.type='button';m.className='movehere';m.textContent='Flytt hit';m.onclick=()=>moveTo(gi,ctx);foot.appendChild(m);}
 }
+/* Dagens grupper: utgangspunktet er de faste gruppene. Er noen borte, jevnes gruppene ut automatisk for i dag:
+   blir det for få til alle gruppene, slås den minste gruppen sammen med de andre, og spillere flyttes fra store til små
+   grupper (den med nivå nærmest gruppa den flyttes til). Neste trening er alle tilbake i sin faste gruppe.
+   Samme svar på alle telefoner, siden det ikke er noe tilfeldig her. */
+let effFrom={};
+function todayGroups(){
+  if(!S.groups) return null;
+  const lvl=id=>(byId(id)||{}).level||2, mean=ids=>ids.length?ids.reduce((a,id)=>a+lvl(id),0)/ids.length:2;
+  let eff=S.groups.map((g,i)=>({i,ids:g.filter(id=>S.present[id]&&byId(id))}));
+  const n=eff.reduce((a,g)=>a+g.ids.length,0);
+  const want=Math.max(1,Math.min(S.groups.length,groupCountFor(Math.max(n,1),S.settings.groups)));
+  const merged=[];
+  const place=id=>{ let best=null,bs=Infinity; eff.forEach(g=>{const sc=g.ids.length*10+Math.abs(lvl(id)-mean(g.ids));if(sc<bs){bs=sc;best=g;}}); best.ids.push(id); };
+  while(eff.length>want){
+    let k=0; eff.forEach((g,j)=>{ if(g.ids.length<eff[k].ids.length||(g.ids.length===eff[k].ids.length&&g.i>eff[k].i)) k=j; });
+    const gone=eff.splice(k,1)[0]; merged.push(gone.i);
+    gone.ids.slice().sort((x,y)=>lvl(x)-lvl(y)||x.localeCompare(y)).forEach(place);
+  }
+  const home={}; S.groups.forEach((g,i)=>g.forEach(id=>home[id]=i));
+  for(let t=0;t<200;t++){
+    let hi=0,lo=0; eff.forEach((g,j)=>{ if(g.ids.length>eff[hi].ids.length) hi=j; if(g.ids.length<eff[lo].ids.length) lo=j; });
+    if(eff[hi].ids.length-eff[lo].ids.length<=1) break;
+    const m=mean(eff[lo].ids);
+    const cand=eff[hi].ids.slice().sort((x,y)=>((home[x]===eff[hi].i)-(home[y]===eff[hi].i))||Math.abs(lvl(x)-m)-Math.abs(lvl(y)-m)||x.localeCompare(y));
+    const id=cand[0]; eff[hi].ids=eff[hi].ids.filter(x=>x!==id); eff[lo].ids.push(id);
+  }
+  const from={}; eff.forEach(g=>g.ids.forEach(id=>{ if(home[id]!==g.i) from[id]=home[id]; }));
+  return {eff,merged,from,absent:S.players.filter(p=>!S.present[p.id]).map(p=>p.id)};
+}
 function renderGroups(){
   const box=$('groups'); box.innerHTML='';
-  if(!S.groups){ $('unassigned').innerHTML=''; $('groupHint').textContent=CANS?'Trykk «Lag grupper» når påmeldingen er klar.':'Gruppene er ikke laget ennå.'; return; }
-  const small=S.groups.map((g,i)=>g.length<MIN_GROUP&&S.groups.length>1?i+1:0).filter(Boolean);
-  $('groupHint').textContent=!CANS?'':(small.length?`Gruppe ${small.join(' og ')} har færre enn ${MIN_GROUP} spillere etter at noen falt fra. Trykk «Lag på nytt» for å få færre, større grupper. `:'')+'Overstyr: trykk på en spiller, og trykk så på en annen spiller for å bytte dem, eller på «Flytt hit» i en annen gruppe.';
-  unassignedNote($('unassigned'),unassignedPlayers(),'g','påmeldt etter at gruppene ble laget.');
-  S.groups.forEach((g,gi)=>{
+  if(!S.groups){ $('unassigned').innerHTML=''; $('groupHint').textContent=CANS?'Trykk «Lag grupper» for å dele inn hele stallen.':'Gruppene er ikke laget ennå.'; return; }
+  const T=todayGroups(); effFrom=T.from;
+  const moved=Object.keys(T.from).length;
+  $('groupHint').classList.toggle('hidden',!CANS);
+  $('groupHint').innerHTML=!CANS?'':'Trykk på en spiller for å merke spilleren borte eller flytte spilleren. Gruppene jevnes ut av seg selv. Kommer noen likevel, trykk på navnet under «Borte i dag».';
+  unassignedNote($('unassigned'),unassignedPlayers(),'g','ikke i noen gruppe ennå.');
+  /* Er nivåene endret siden gruppene ble laget? Da foreslås nye grupper (men de lages ikke uten at du trykker). */
+  const changed=S.groupLevels?S.players.filter(p=>S.groupLevels[p.id]!==undefined&&S.groupLevels[p.id]!==p.level).length:0;
+  if(changed&&CAN){
+    const n=document.createElement('div');n.className='note';
+    n.innerHTML=`<b>${changed} ${changed===1?'spiller har':'spillere har'} fått nytt nivå</b> siden gruppene ble laget. Vil du lage nye grupper med de nye nivåene? `;
+    const b1=document.createElement('button');b1.type='button';b1.className='btn small';b1.textContent='Lag nye grupper';b1.style.marginTop='8px';
+    b1.onclick=()=>{sel=null;generate(true);save();render();flash('Nye grupper er laget med de oppdaterte nivåene.');};
+    const b2=document.createElement('button');b2.type='button';b2.className='btn small';b2.textContent='Behold gruppene';b2.style.margin='8px 0 0 6px';
+    b2.onclick=()=>{S.groupLevels={};S.players.forEach(p=>S.groupLevels[p.id]=p.level);save();render();};
+    n.appendChild(document.createElement('br'));n.appendChild(b1);n.appendChild(b2);$('unassigned').appendChild(n);
+  }
+  if(T.merged.length||moved){
+    const n=document.createElement('div');n.className='ok';n.style.gridColumn='1/-1';
+    n.innerHTML=`<b>Justert for i dag:</b> ${T.merged.length?`${T.merged.length===1?'én gruppe er':T.merged.length+' grupper er'} slått sammen med de andre, så det blir ${T.eff.length} grupper. `:''}${moved?`${moved} ${moved===1?'spiller er':'spillere er'} flyttet for å jevne ut (merket «flyttet i dag»). `:''}Neste trening er alle tilbake i sin faste gruppe.`;
+    box.appendChild(n);
+  }
+  T.eff.forEach((g,gi)=>{
     const bib=BIBS[gi%BIBS.length];
-    const lv=g.map(id=>byId(id).level);
-    const levels=[...new Set(lv)].sort((a,b)=>a-b).map(l=>'nivå '+fmt(l)).join(' + ');
     const card=document.createElement('div');card.className='grp';
-    card.innerHTML=`<div class="bib" style="background:${bib.c};color:${bib.t}"><span class="nm">Gruppe ${gi+1}</span></div>`;
-    card.appendChild(playerList(g,'g'));
+    card.innerHTML=`<div class="bib" style="background:${bib.c};color:${bib.t}"><span class="nm">Gruppe ${gi+1}</span><span class="st">${esc(bib.n)}</span></div>`;
+    card.appendChild(playerList(g.ids,'g'));
     const foot=document.createElement('div');foot.className='foot';
-    foot.innerHTML=`<span>${g.length} spillere</span>`;
-    moveBtn(foot,g,gi,'g');
+    foot.innerHTML=`<span>${g.ids.length} ${g.ids.length===1?'spiller':'spillere'} i dag</span>`;
+    moveBtn(foot,S.groups[g.i],g.i,'g');
     card.appendChild(foot);box.appendChild(card);
   });
+  if(T.absent.length){
+    const card=document.createElement('div');card.className='grp';
+    card.innerHTML=`<div class="bib" style="background:var(--surface-2);color:var(--muted)"><span class="nm" style="font-size:18px">Borte i dag</span><span class="st">${T.absent.length}</span></div>`;
+    card.appendChild(playerList(T.absent,'g'));
+    box.appendChild(card);
+  }
 }
 function renderSelBar(){
   if(sel&&byId(sel)){$('selBar').classList.remove('hidden');$('selText').textContent=`${byId(sel).name} er valgt. Trykk på en annen spiller for å bytte, eller «Flytt hit».`;}
@@ -746,7 +835,7 @@ function moveTo(gi,ctx){
 function autoAssign(){
   const un=unassignedPlayers(); if(!un.length||!S.groups||!CANS) return;
   /* Kommer det så mange flere at det trengs flere grupper (5–10 per gruppe)? */
-  const want=groupCountFor(presentPlayers().length,S.settings.groups);
+  const want=groupCountFor(S.players.length,S.settings.groups);
   const was=S.groups.length; let added=0;
   /* Flere grupper trengs: legg til tomme grupper. De som allerede er i en gruppe, blir der de er. */
   while(S.groups.length<want){ S.groups.push([]); added++; }
@@ -775,7 +864,7 @@ function autoAssign(){
     to.push(from.splice(bi,1)[0]); moved++;
   }
   sel=null; manual=false; save(); rerender();
-  flash((added?`Med ${presentPlayers().length} spillere trengs det ${want} grupper, så ${added===1?'én ny gruppe':added+' nye grupper'} er lagt til. `:'')+'Lagt til: '+names.map(esc).join(', ')+'.'+(moved?` ${moved} ${moved===1?'spiller':'spillere'} ble flyttet for å jevne ut gruppestørrelsen.`:''));
+  flash((added?`Med ${S.players.length} spillere trengs det ${want} grupper, så ${added===1?'én ny gruppe':added+' nye grupper'} er lagt til. `:'')+'Lagt til: '+names.map(esc).join(', ')+'.'+(moved?` ${moved} ${moved===1?'spiller':'spillere'} ble flyttet for å jevne ut gruppestørrelsen.`:''));
 }
 
 /* ---------- lag til cup og seriespill ---------- */
@@ -1017,6 +1106,7 @@ function render(){
   document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===tab)));
   ['trening','ovelser','aarshjul','lag','spillere','oppsett'].forEach(t=>{const v=$('view-'+t);v.classList.toggle('hidden',t!==tab);if(t===tab)v.style.display='flex';else v.style.display='';});
   $('sampleNote').classList.toggle('hidden',!S.sample||!CAN||MODE==='loading');
+  dailyReset();
   renderAttendance();renderGroups();renderTeamSetup();renderTeams();renderSelBar();renderRoster();renderSettings();renderExercises();renderWheel();NX.renderCoaches();
 }
 /* ---------- øvelser og øktplan ---------- */
@@ -1258,8 +1348,9 @@ function plan(){
   const t2=st.filter(e=>!t0.includes(e)&&!t1.includes(e));
   const order=rot(t0,seed).concat(rot(t1,seed),rot(t2,seed*3));
   const ov=(NX_ENV.wheelState().sessions||{})[key]||[];
-  const N=sz.G, picks=new Array(N).fill(null);
-  for(let i=0;i<N;i++){const e=ov[i]&&exA(ov[i]);if(e&&isStation(e))picks[i]=e;}
+  /* Først de automatiske stasjonene (uten overstyring), så byttes bare de stasjonene du har valgt selv.
+     Da blir de andre stasjonene stående der de var. */
+  const N=sz.G; let picks=new Array(N).fill(null);
   const used=()=>picks.filter(Boolean);
   const cost=()=>used().reduce((a,e)=>a+ballsFor(e,gs),0);
   const fill=(capCat,keepBudget,list)=>{
@@ -1274,6 +1365,13 @@ function plan(){
     }
   };
   fill(true,true); fill(false,true); fill(false,false,order.slice().sort((p,q)=>ballsFor(p,gs)-ballsFor(q,gs)));
+  const manual=new Set();
+  for(let i=0;i<N;i++){const e=ov[i]&&exA(ov[i]);if(e&&isStation(e)){picks[i]=e;manual.add(i);}}
+  /* Ble en øvelse valgt manuelt som allerede sto på en annen stasjon, får den andre stasjonen en ny øvelse. */
+  for(let i=0;i<N;i++){ if(manual.has(i)) continue;
+    if(picks.some((x,j)=>j!==i&&x===picks[i])){ const keep=picks[i]; picks[i]=null;
+      const cands=order.filter(x=>!picks.includes(x)&&x!==keep);
+      picks[i]=cands.find(x=>cost()+ballsFor(x,gs)<=balls)||cands.sort((p,q)=>ballsFor(p,gs)-ballsFor(q,gs))[0]||keep; } }
   const games=ALL().filter(isGame);
   const game=(T&&(games.find(e=>e.theme===T)||games.find(e=>themesOf(e).includes(T))))||exA('w40-spill')||games[0];
   const total=Number(set.minutes)===75?75:60;
@@ -1438,6 +1536,9 @@ function stationsDrawing(P){
   P.picks.forEach((e,i)=>s+=stationSvg(P.fits[i],e,BIBS[i%BIBS.length].c));
   P.picks.forEach((e,i)=>{const r=P.fits[i];const bib=P.sz.real?BIBS[i%BIBS.length]:null;
     s+=badge(r.x*U+22,r.y*U+22,i+1,bib,`${Math.round(r.w)} × ${Math.round(r.h)} m`);
+    { /* Navnet på øvelsen nederst i stasjonen, så kartet viser hva som står hvor */
+      const maxC=Math.floor((r.w*U-12)/6.6); let t=e.title; if(t.length>maxC) t=t.slice(0,maxC-1).trim()+'…';
+      s+=`<text x="${(r.x+r.w/2)*U}" y="${(r.y+r.h)*U-8}" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="12.5" fill="#fff" stroke="#1f3d26" stroke-width="3" paint-order="stroke">${esc(t)}</text>`; }
 });
   return wrapSvg(s+edgeLabels(),'Baneoversikt med stasjonene');
 }
@@ -1507,8 +1608,8 @@ function render(){
       ${NX_ENV.canEdit?`<select data-i="${i}" aria-label="Øvelse på stasjon ${i+1}">${optionsFor(e,P)}</select>`:''}</div></div>`;}).join('');
   const anyOv=P.picks.some((e,i)=>!P.auto(i));
   $('sessPanel').innerHTML=head+`<table class="plan"><tbody>${rows.join('')}</tbody></table>`+
-    (P.sz.real?'':`<div class="note">Gruppene er ikke laget ennå. Planen regner med ${P.sz.n} spillere i ${N} grupper. Lag gruppene i «Trening», så ser du hvilken farge som starter på hvilken stasjon.</div>`)+
-    (P.sz.real&&groupCountFor(NX_ENV.presentCount(),NX_ENV.settings().groups||5)!==N?`<div class="note">Det er ${NX_ENV.presentCount()} spillere på trening, men bare ${N} grupper. Med så mange bør det være ${groupCountFor(NX_ENV.presentCount(),NX_ENV.settings().groups||5)} grupper og like mange stasjoner. Trykk «Lag på nytt» under «Trening».</div>`:'')+
+    (P.sz.real?'':`<div class="note">Gruppene er ikke laget ennå. Planen regner med ${P.sz.n} spillere i ${N} grupper. Lag gruppene under «Grupper», så ser du hvilken farge som starter på hvilken stasjon.</div>`)+
+    (P.sz.real&&(NX_ENV.groups()||[]).some(g=>g.length<3)?`<div class="note">Noen grupper har under 3 spillere til stede i dag (${(NX_ENV.groups()||[]).map((g,k)=>g.length<3?BIBS[k%BIBS.length].n+': '+g.length:'').filter(Boolean).join(', ')}). Flytt noen dit under «Grupper».</div>`:'')+
     (P.gameMin<12?`<div class="note">Med ${N} stasjoner på ${P.total} minutter blir det bare ${P.gameMin} minutter spill. Velg 75 min, eller lag færre grupper.</div>`:'')+
     (N<4?`<div class="hint">Med få spillere blir det bare ${N} ${N===1?'gruppe':'grupper'}, og derfor ${N} ${N===1?'stasjon':'stasjoner'}.</div>`:'');
   const figure=(title,svg,extra,id,legend)=>`<article class="scard nx-fig"${id?` id="${id}"`:''}><div class="hd"><div style="display:flex;flex-direction:column;gap:4px"><div class="kick"><span class="stn">Oversikt</span>${P.T?`<span class="tag">${esc(P.T)}</span>`:''}</div><h3>${esc(title)}</h3>
@@ -1516,7 +1617,7 @@ function render(){
   const ballLine=`<div class="${over?'note':'hint'}"><b>Baller på stasjonene:</b> ${P.cost} av ${P.balls}.${over?' Det er ikke nok baller. Bytt en stasjon eller øk antall baller i «Årshjul».':''} Spillet bruker ${P.gameBalls}.</div>`;
   const stationsFig=figure('Stasjonene',drawing,`<div class="nx-list">${relist}</div>${ballLine}
     ${NX_ENV.canEdit?`<div class="row noprint"><span class="hint">Øvelsene velges automatisk ut fra temaet og ballene, og er de samme hele perioden. Bytter du en øvelse, gjelder det resten av perioden.</span>${anyOv?'<button class="btn small" type="button" id="nxAuto">Tilbake til auto</button>':''}</div>`:''}
-    ${CP.head?`<div class="hint"><b>Hovedtrener:</b> ${esc(CP.head)} går rundt mellom alle stasjonene.</div>`:''}${CP.extra.length?`<div class="hint"><b>Ekstra trenere:</b> ${esc(CP.extra.join(', '))}. Hjelp til der det trengs, og ta en bane hver i spillet.</div>`:''}${!CP.any&&NX_ENV.coachList().length?'<div class="hint">Huk av trenerne som er her under «Trening», så får hver trener sin stasjon.</div>':''}
+    ${CP.head?`<div class="hint"><b>Hovedtrener:</b> ${esc(CP.head)} går rundt mellom alle stasjonene.</div>`:''}${CP.extra.length?`<div class="hint"><b>Ekstra trenere:</b> ${esc(CP.extra.join(', '))}. Hjelp til der det trengs, og ta en bane hver i spillet.</div>`:''}${!CP.any&&NX_ENV.coachList().length?'<div class="hint">Huk av trenerne som er her under «Grupper», så får hver trener sin stasjon.</div>':''}
     <div class="hint">Bytt med klokka: 1 → 2 → … → ${N} → 1. Kjeglene står hele tiden, bare gruppene flytter.</div>`,'nx-fig-st',stationLegend(P));
   const gameFig=figure('Spillet etter stasjonene',gameDrawing(P),`<div class="hint">${P.sz.n} spillere, alle spiller hele tiden: ${esc(gameSummary(P))}. ${P.pitchSizes.some(n=>n%2)?'Jokeren spiller med laget som har ballen. Bytt joker hvert 3. minutt. ':''}Bruk kjeglene fra stasjonene.</div>`,'nx-fig-game',gameLegend(P));
   const cards=P.picks.map((e,i)=>`<div class="cardwrap" id="nx-card-${i}" style="width:100%">${cardHtml(e,{tag:'Stasjon '+(i+1)+(CP.byStation[i]?' · '+CP.byStation[i]:''),minutes:P.stMin})}</div>`).join('')+
@@ -1560,7 +1661,7 @@ const NX_ENV={
   periodTheme:p=>periodTheme(p),
   settings:()=>S.settings,
   wheelState:()=>S.wheel||{},
-  groups:()=>S.groups,
+  groups:()=>{const T=todayGroups();return T?T.eff.map(g=>g.ids):null;},
   presentCount:()=>presentPlayers().length,
   players:()=>S.players,
   rosterCount:()=>S.players.length,
@@ -1579,7 +1680,7 @@ function flash(html,cls){const el=tab==='lag'?$('tMsg'):$('msg');el.innerHTML=ht
 /* ---------- handlers ---------- */
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;confirmKey=null;render();});
 $('allBtn').onclick=()=>{S.players.forEach(p=>S.present[p.id]=true);save();render();};
-$('noneBtn').onclick=()=>{S.present={};cleanGroups();save();render();};
+$('noneBtn').onclick=()=>{S.present={};save();render();};
 $('pasteToggle').onclick=()=>{const p=$('pastePanel');p.classList.toggle('hidden');};
 function matchNames(text){
   const lines=text.split(/[\n,;]+/).map(s=>s.trim()).filter(s=>s.length>1);
@@ -1703,17 +1804,17 @@ $('tXlsxBtn').onclick=async()=>{
 };
 $('addCoach').onclick=()=>{ const n=$('newCoach').value.trim(); if(!n)return; S.teams.coaches.push({id:uid(),name:n}); $('newCoach').value=''; save(); renderTeamSetup(); $('newCoach').focus(); };
 $('newCoach').addEventListener('keydown',e=>{if(e.key==='Enter')$('addCoach').click();});
-$('genBtn').onclick=()=>{ if(!presentPlayers().length){flash('Ingen er markert som påmeldt ennå.','note');return;} sel=null;generate(false);save();render();const gn=groupNote(presentPlayers().length,S.settings.groups);flash(gn,gn?'ok':''); };
-$('regenBtn').onclick=()=>{ if(!presentPlayers().length){flash('Ingen er markert som påmeldt ennå.','note');return;} sel=null;generate(true);save();render();const gn=groupNote(presentPlayers().length,S.settings.groups);flash(gn,gn?'ok':''); };
+$('genBtn').onclick=()=>{ if(!S.players.length){flash('Legg inn spillere først.','note');return;} sel=null;generate(false);S.presentDay=todayStr();save();render();flash(`Gruppene er laget med alle ${S.players.length} spillerne. Trykk bort dem som ikke er her.`); };
+$('regenBtn').onclick=()=>{ if(confirmKey!=='regen'){confirmKey='regen';renderAttendance();return;} confirmKey=null; sel=null;generate(true);save();render();flash('Nye grupper er laget. De som er merket borte, er fortsatt borte.'); };
 $('saveBtn').onclick=()=>{
   if(!S.groups){flash('Lag gruppene først.','note');return;}
-  cleanGroups(); S.history.push({date:new Date().toISOString(),groups:S.groups.map(g=>[...g])}); S.history=S.history.slice(-10); save();
+  cleanGroups(); S.history.push({date:new Date().toISOString(),groups:S.groups.map(g=>g.filter(id=>S.present[id]))}); S.history=S.history.slice(-10); save();
   flash('Lagret. Neste gang prøver verktøyet å unngå de samme parene.'); renderSettings();
 };
 function setupText(){
   const d=new Date().toLocaleDateString('nb-NO',{weekday:'long',day:'numeric',month:'numeric'});
   let t=`Trening ${d}, ${presentPlayers().length} spillere\n`;
-  S.groups.forEach((g,i)=>{t+=`\nGruppe ${i+1}: `+g.map(id=>byId(id).name).join(', ');});
+  S.groups.forEach((g,i)=>{t+=`\nGruppe ${i+1}: `+g.filter(id=>S.present[id]).map(id=>byId(id).name).join(', ');});
   return t;
 }
 $('copyBtn').onclick=()=>{
@@ -1722,6 +1823,11 @@ $('copyBtn').onclick=()=>{
   const fallback=()=>{fb.value=t;fb.classList.remove('hidden');fb.focus();fb.select();flash('Kopiering ble ikke tillatt her. Teksten er markert under, så du kan kopiere den selv.','note');};
   try{navigator.clipboard.writeText(t).then(()=>{fb.classList.add('hidden');flash('Oppsettet er kopiert. Nivåene er ikke med i teksten.');},fallback);}catch(e){fallback();}
 };
+$('pActAway').onclick=()=>{ if(actId){ delete S.present[actId]; } closeAct(); save(); render(); };
+$('pActMove').onclick=()=>{ if(actId){ sel=actId; selCtx='g'; } closeAct(); rerender(); };
+$('pActCancel').onclick=closeAct;
+$('pAct').onclick=e=>{ if(e.target===$('pAct')) closeAct(); };
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&actId) closeAct(); });
 $('selCancel').onclick=()=>{sel=null;rerender();};
 $('toExercises').onclick=()=>{tab='ovelser';confirmKey=null;render();window.scrollTo(0,0);};$('addBtn').onclick=()=>{
   const n=$('newName').value.trim(); if(!n) return;
@@ -1926,7 +2032,7 @@ function startShared(owner){
     if(CAN && (dirty || writing || snap.metadata.hasPendingWrites)) { startSession(); return; }
     const cur=JSON.parse(JSON.stringify(data)); delete cur.updatedAt;
     if(!validState(cur)) { startSession(); return; }
-    cur.lead=S.lead||null; cur.coachPresent=S.coachPresent||{}; cur.present=S.present||{}; cur.groups=S.groups||null; cur.history=Array.isArray(S.history)?S.history:[];
+    cur.groupLevels=S.groupLevels||null; cur.presentDay=S.presentDay||null; cur.lead=S.lead||null; cur.coachPresent=S.coachPresent||{}; cur.present=S.present||{}; cur.groups=S.groups||null; cur.history=Array.isArray(S.history)?S.history:[];
     S=cur; lastM=JSON.stringify(mainPart()); if(CAN) saveLocal(); render(); startSession();
   },lostConn);
   render();
@@ -1940,7 +2046,7 @@ $('migrateBtn').onclick=()=>{
   if(confirmKey!=='migrate'){ confirmKey='migrate'; $('migrateBtn').textContent=`Bekreft: erstatt med ${main.players.length} spillere`; return; }
   confirmKey=null; $('migrateBtn').textContent='Flytt dataene hit';
   const cur=JSON.parse(JSON.stringify(main)); delete cur.updatedAt; delete cur.sample;
-  cur.coachPresent=sess.coachPresent||{}; cur.present=sess.present||cur.present||{}; cur.groups=sess.groups||cur.groups||null; cur.history=Array.isArray(sess.history)?sess.history:(cur.history||[]);
+  cur.groupLevels=sess.groupLevels||null; cur.presentDay=sess.presentDay||null; cur.coachPresent=sess.coachPresent||{}; cur.present=sess.present||cur.present||{}; cur.groups=sess.groups||cur.groups||null; cur.history=Array.isArray(sess.history)?sess.history:(cur.history||[]);
   S=cur; if(S.groups) cleanGroups(); save(); render();
   $('migrateBox').value=''; $('migrateMsg').innerHTML=`<div class="ok">Ferdig. ${S.players.length} spillere er flyttet over, og alle trenere ser dem nå.</div>`;
 };
