@@ -757,12 +757,27 @@ function todayGroups(){
     gone.ids.slice().sort((x,y)=>lvl(x)-lvl(y)||x.localeCompare(y)).forEach(place);
   }
   const home={}; S.groups.forEach((g,i)=>g.forEach(id=>home[id]=i));
+  /* Utjevning: én spiller færre i den største gruppa og én mer i den minste. Det kan skje direkte,
+     eller som en «stige» gjennom gruppene i mellom (hver gruppe gir én spiller videre til neste), når
+     det gir spillere som passer bedre i nivå der de havner. Hvert ekstra ledd koster litt, så det
+     velges bare når det faktisk gir bedre nivå. */
+  const bonus=(id,g)=>home[id]===g.i?0:-0.05; /* flytt helst dem som allerede er flyttet */
+  const pick=(X,m)=>{let b=null;X.ids.forEach(a=>{const d=lvl(a)-m,c=d*d+bonus(a,X);if(!b||c<b.c-1e-9||(Math.abs(c-b.c)<1e-9&&a<b.a))b={c,a};});return b;};
   for(let t=0;t<200;t++){
     let hi=0,lo=0; eff.forEach((g,j)=>{ if(g.ids.length>eff[hi].ids.length) hi=j; if(g.ids.length<eff[lo].ids.length) lo=j; });
     if(eff[hi].ids.length-eff[lo].ids.length<=1) break;
-    const m=mean(eff[lo].ids);
-    const cand=eff[hi].ids.slice().sort((x,y)=>((home[x]===eff[hi].i)-(home[y]===eff[hi].i))||Math.abs(lvl(x)-m)-Math.abs(lvl(y)-m)||x.localeCompare(y));
-    const id=cand[0]; eff[hi].ids=eff[hi].ids.filter(x=>x!==id); eff[lo].ids.push(id);
+    const H=eff[hi],L=eff[lo];
+    const paths=[[hi,lo]];
+    eff.forEach((K,k)=>{ if(k!==hi&&k!==lo) paths.push([hi,k,lo]); });
+    const mH=mean(H.ids),mL=mean(L.ids),lowS=Math.min(mH,mL),highS=Math.max(mH,mL);
+    const mid=eff.map((g,k)=>k).filter(k=>k!==hi&&k!==lo&&mean(eff[k].ids)>=lowS&&mean(eff[k].ids)<=highS)
+      .sort((x,y)=>(mean(eff[x].ids)-mean(eff[y].ids))*(mH<=mL?1:-1));
+    if(mid.length>1) paths.push([hi,...mid,lo]);
+    let best=null;
+    paths.forEach(p=>{ let c=0.3*(p.length-2); const mv=[];
+      for(let s=0;s<p.length-1;s++){ const b=pick(eff[p[s]],mean(eff[p[s+1]].ids)); c+=b.c; mv.push([p[s],p[s+1],b.a]); }
+      if(!best||c<best.c-1e-9) best={c,mv}; });
+    best.mv.forEach(([f,to,a])=>{ eff[f].ids=eff[f].ids.filter(x=>x!==a); eff[to].ids.push(a); });
   }
   const from={}; eff.forEach(g=>g.ids.forEach(id=>{ if(home[id]!==g.i) from[id]=home[id]; }));
   return {eff,merged,from,absent:S.players.filter(p=>!S.present[p.id]).map(p=>p.id)};
