@@ -494,6 +494,12 @@ body.locked #status{display:none}
       <div class="row"><button class="btn" id="migrateBtn" type="button">Flytt dataene hit</button></div>
       <div id="migrateMsg"></div>
     </div>
+    <div class="panel" id="namePanel">
+      <h2>Spillernavn</h2>
+      <div class="hint">Fornavn og forbokstav i etternavnet er nok til å kjenne igjen barna, og gir mindre personopplysninger i appen. Innliming fra Spond fungerer fortsatt med fullt navn.</div>
+      <div id="nameInfo"></div>
+      <div class="row"><button class="btn" id="shortNames">Forkort etternavn</button></div>
+    </div>
     <div class="panel">
       <h2>Tilbakestill</h2>
       <div class="hint">Sletter spillerlisten, historikken og innstillingene for hele laget.</div>
@@ -1086,6 +1092,10 @@ function renderSettings(){
   $('histInfo').innerHTML=n?`<div class="ok">Husker ${n} ${n===1?'økt':'økter'}. Siste: ${new Date(S.history[S.history.length-1].date).toLocaleDateString('nb-NO',{day:'numeric',month:'long'})}.</div>`:'<div class="hint">Ingen lagrede økter ennå.</div>';
   $('clearHist').textContent=confirmKey==='hist'?'Bekreft: glem historikken':'Glem historikken';
   $('resetAll').textContent=confirmKey==='reset'?'Bekreft: slett alt':'Slett alt';
+  { const n=S.players.filter(p=>shortName(p.name,S.players)!==p.name).length;
+    $('nameInfo').innerHTML=n?`<div class="note">${n} ${n===1?'spiller har':'spillere har'} fullt etternavn. Eksempel: «Ola Nordmann» blir «Ola N.».</div>`:'<div class="ok">Alle spillerne står med fornavn og forbokstav.</div>';
+    $('shortNames').classList.toggle('hidden',!n);
+    $('shortNames').textContent=confirmKey==='short'?`Bekreft: forkort ${n} navn`:'Forkort etternavn'; }
   levelSeg($('newLevel'),newLevel,l=>{newLevel=l;renderSettings();},S.settings.levels);
 }
 function render(){
@@ -1682,12 +1692,24 @@ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{tab=b.datase
 $('allBtn').onclick=()=>{S.players.forEach(p=>S.present[p.id]=true);save();render();};
 $('noneBtn').onclick=()=>{S.present={};save();render();};
 $('pasteToggle').onclick=()=>{const p=$('pastePanel');p.classList.toggle('hidden');};
+/* Fornavn + forbokstav i siste navn: «Ola Martin Nordmann» og «Ola N.» gir begge «ola n». */
+const nameKey=s=>{const w=norm(s).split(' ').filter(Boolean);return w.length<2?w.join(''):w[0]+' '+w[w.length-1][0];};
+/* Forkortet navn: fornavn + forbokstav i etternavnet. Blir to spillere like, brukes to bokstaver. */
+function shortName(name,all){
+  const w=String(name).trim().split(/\s+/); if(w.length<2) return name.trim();
+  const last=w[w.length-1]; if(/^[A-ZÆØÅa-zæøå]{1,2}\.$/.test(last)&&w.length===2) return name.trim();
+  const mk=k=>w[0]+' '+last.slice(0,k).toUpperCase().replace(/^(.)(.*)$/,(m,a,b)=>a+b.toLowerCase())+'.';
+  let r=mk(1);
+  if(all){ const twin=all.some(q=>q.name!==name&&String(q.name).trim().split(/\s+/)[0]===w[0]&&(String(q.name).trim().split(/\s+/).pop()[0]||'').toUpperCase()===last[0].toUpperCase()); if(twin) r=mk(2); }
+  return r;
+}
 function matchNames(text){
   const lines=text.split(/[\n,;]+/).map(s=>s.trim()).filter(s=>s.length>1);
   const found=new Set(),miss=[];
   lines.forEach(line=>{
     const L=norm(line); if(!L) return;
     let m=S.players.filter(p=>norm(p.name)===L);
+    if(!m.length){const K=nameKey(line); if(K.includes(' ')) m=S.players.filter(p=>nameKey(p.name)===K);}
     if(!m.length) m=S.players.filter(p=>{const P=norm(p.name);return L.includes(P)||P.includes(L);});
     if(!m.length){const first=L.split(' ')[0];m=S.players.filter(p=>norm(p.name).split(' ')[0]===first);}
     if(m.length===1) found.add(m[0].id); else miss.push(line+(m.length>1?' (flere treff)':''));
@@ -1854,6 +1876,8 @@ $('importAdd').onclick=()=>doImport(false);
 $('importReplace').onclick=()=>{ if(confirmKey!=='imp'){confirmKey='imp';$('importReplace').textContent='Bekreft: erstatt alt';return;} confirmKey=null;$('importReplace').textContent='Erstatt hele listen';doImport(true); };
 $('exportBtn').onclick=()=>{ $('importBox').value=[...S.players].sort((a,b)=>a.level-b.level||a.name.localeCompare(b.name,'nb')).map(p=>`${p.name}, ${String(p.level).replace('.',',')}`).join('\n'); $('importMsg').innerHTML='<div class="ok">Listen står i feltet over. Kopier den og ta vare på den som reservekopi.</div>'; };
 $('clearHist').onclick=()=>{ if(confirmKey!=='hist'){confirmKey='hist';renderSettings();return;} S.history=[];confirmKey=null;save();renderSettings(); };
+$('shortNames').onclick=()=>{ if(confirmKey!=='short'){confirmKey='short';renderSettings();return;}
+  const all=S.players.map(p=>({name:p.name})); S.players.forEach(p=>{p.name=shortName(p.name,all);}); confirmKey=null; save(); render(); };
 $('resetAll').onclick=()=>{ if(confirmKey!=='reset'){confirmKey='reset';renderSettings();return;} try{localStorage.removeItem(LS);}catch(e){} S={players:[],present:{},settings:{groups:6,mix:'strict',levels:3},history:[],groups:null,sample:false}; confirmKey=null; save(); tab='spillere'; render(); };
 
 render();
