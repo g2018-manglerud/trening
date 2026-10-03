@@ -121,7 +121,7 @@ details .inner{padding:0 18px 18px;display:flex;flex-direction:column;gap:14px}
     </ul>
   </section>
 
-  <details id="admin">
+  <details id="admin" hidden>
     <summary>For administrator (hovedtreneren)</summary>
     <div class="inner">
       <p>Som administrator ser du også fanene Årshjul, Lag, Spillere og Innstillinger, og du kan alltid endre, uansett hvem som har ansvaret for gruppene.</p>
@@ -155,5 +155,9 @@ details .inner{padding:0 18px 18px;display:flex;flex-direction:column;gap:14px}
 
   <a class="back" href="./">← Tilbake til appen</a>
 </div>
+<script>
+/* Administrator-delen vises bare der administratoren er innlogget i appen. */
+try{ if(localStorage.getItem('g2018-admin')==='1') document.getElementById('admin').hidden=false; }catch(e){}
+</script>
 </body>
 </html>

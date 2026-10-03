@@ -1970,7 +1970,7 @@ async function adminLogin(){
     location.reload();
   }catch(e){ $('codeErr').textContent='Innloggingen virket ikke: '+((e&&e.message)||e); }
 }
-async function adminLogout(){ try{ await initFirebase(); await FB.auth.signOut(); }catch(e){} location.reload(); }
+async function adminLogout(){ try{localStorage.removeItem('g2018-admin');}catch(e){} try{ await initFirebase(); await FB.auth.signOut(); }catch(e){} location.reload(); }
 
 let pendingCreate=null;
 async function connect(code,quiet){
@@ -1991,6 +1991,8 @@ async function connect(code,quiet){
   try{localStorage.setItem(LS_CODE,code);}catch(e){}
   document.body.classList.remove('locked'); $('opening').classList.add('hidden');
   $('acctInfo').textContent=owner?`Administrator (${user.email})`:'Trener';
+  /* Hjelpesiden viser administrator-delen bare på telefonen/maskinen der administratoren er innlogget. */
+  try{ owner?localStorage.setItem('g2018-admin','1'):localStorage.removeItem('g2018-admin'); }catch(e){}
   $('adminBtn').textContent=owner?'Logg ut som administrator':'Logg inn som administrator';
   $('adminBtn').onclick=owner?adminLogout:adminLogin;
   startShared(owner);
