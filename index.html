@@ -605,7 +605,9 @@ function generate(includeCurrent){
   const strict=S.settings.mix==='strict';
   // Hele nivåer holder seg nær sitt nivå. Halve nivåer (1½, 2½) kan havne hvor som helst mellom de to nivåene.
   const jit=strict?0.3:0.75, wLvl=strict?4:1.5;
-  const keyOf=l=>Number.isInteger(l)?l+(Math.random()*2-1)*jit:l+(Math.random()-0.5);
+  /* Strengt: alle på helt nivå kommer foran dem på halvt nivå (1 før 1½ før 2). 1½ fyller opp der det er plass.
+     Litt blanding: nivåene kan gli litt over i hverandre. */
+  const keyOf=l=>strict?(Number.isInteger(l)?l+Math.random()*0.001:l-0.498+Math.random()*0.996):(Number.isInteger(l)?l+(Math.random()*2-1)*jit:l+(Math.random()-0.5));
   const pw=pairWeights(includeCurrent);
   let best=null,bestScore=Infinity;
   for(let it=0;it<800;it++){
@@ -778,6 +780,21 @@ function todayGroups(){
       for(let s=0;s<p.length-1;s++){ const b=pick(eff[p[s]],mean(eff[p[s+1]].ids)); c+=b.c; mv.push([p[s],p[s+1],b.a]); }
       if(!best||c<best.c-1e-9) best={c,mv}; });
     best.mv.forEach(([f,to,a])=>{ eff[f].ids=eff[f].ids.filter(x=>x!==a); eff[to].ids.push(a); });
+  }
+  /* Rekkefølge etter nivå (strengt oppsett): ingen spiller skal stå i en svakere gruppe enn en som er
+     dårligere enn seg. Står en 1-er i en svakere gruppe mens en 1½ er i den sterkeste, bytter de plass.
+     Gruppestørrelsene endres ikke. Ved like nivå flyttes helst den som allerede er flyttet. */
+  if(S.settings.mix!=='mix'&&eff.length>1){
+    const ord=eff.map((g,k)=>k).sort((x,y)=>mean(eff[x].ids)-mean(eff[y].ids)||eff[x].i-eff[y].i);
+    const away=(id,g)=>home[id]!==g.i?1:0;
+    for(let t=0;t<400;t++){ let done=true;
+      for(let s=0;s<ord.length-1;s++) for(let u=s+1;u<ord.length;u++){
+        const A=eff[ord[s]], B=eff[ord[u]]; if(!A.ids.length||!B.ids.length) continue;
+        const worstA=A.ids.slice().sort((x,y)=>lvl(y)-lvl(x)||away(y,A)-away(x,A)||(x<y?-1:1))[0];
+        const bestB=B.ids.slice().sort((x,y)=>lvl(x)-lvl(y)||away(y,B)-away(x,B)||(x<y?-1:1))[0];
+        if(lvl(bestB)<lvl(worstA)){ A.ids=A.ids.filter(x=>x!==worstA).concat(bestB); B.ids=B.ids.filter(x=>x!==bestB).concat(worstA); done=false; }
+      }
+      if(done) break; }
   }
   const from={}; eff.forEach(g=>g.ids.forEach(id=>{ if(home[id]!==g.i) from[id]=home[id]; }));
   return {eff,merged,from,absent:S.players.filter(p=>!S.present[p.id]).map(p=>p.id)};
