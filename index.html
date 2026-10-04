@@ -1588,6 +1588,10 @@ function gameDrawing(P){
   const k=P.pitches; let s=fieldBase();
   const cs=k===1?[{x:(FW-26)/2,y:(FH-20)/2,w:26,h:20}]:cells(k);
   const L=P.game.layoutSmall||(P.game.goal==='kjegle'?'ends':'bigboth');
+  /* Flest spillere på de største banene. */
+  const bySize=cs.map((c,i)=>i).sort((x,y)=>cs[y].w*cs[y].h-cs[x].w*cs[x].h||x-y);
+  const cnt=P.pitchSizes.slice().sort((x,y)=>y-x), nOn=new Array(cs.length);
+  bySize.forEach((ci,r)=>nOn[ci]=cnt[r]);
   cs.forEach((c,i)=>{
     const long=c.w>=c.h; let w=Math.min(long?22:16,c.w-2.5), h=Math.min(long?16:22,c.h-2.5);
     const r={x:c.x+(c.w-w)/2,y:c.y+(c.h-h)/2,w,h}; const X=r.x*U,Y=r.y*U,W=w*U,H=h*U;
@@ -1601,7 +1605,7 @@ function gameDrawing(P){
       else s+=long?cone(x,y-15)+cone(x,y+15):cone(x-15,y)+cone(x+15,y);
     });
     s+=`<text x="${(r.x+w/2)*U}" y="${(r.y+h/2)*U+7}" text-anchor="middle" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="700" font-size="22" fill="#fff" stroke="#1f3d26" stroke-width="3" paint-order="stroke">Bane ${'ABCDEF'[i]}</text>`;
-    s+=`<text x="${(r.x+w/2)*U}" y="${(r.y+h/2)*U+26}" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="13" fill="#fff" stroke="#1f3d26" stroke-width="3" paint-order="stroke">${fmtGame(P.pitchSizes[i])}</text>`;
+    s+=`<text x="${(r.x+w/2)*U}" y="${(r.y+h/2)*U+26}" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="13" fill="#fff" stroke="#1f3d26" stroke-width="3" paint-order="stroke">${fmtGame(nOn[i])}</text>`;
     s+=`<text x="${(r.x+w/2)*U}" y="${(r.y+h/2)*U+42}" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="600" font-size="11" fill="#fff" stroke="#1f3d26" stroke-width="3" paint-order="stroke">${Math.round(w)} × ${Math.round(h)} m</text>`;
   });
   return wrapSvg(s+edgeLabels(),'Baneoversikt for spillet');
