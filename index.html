@@ -1457,19 +1457,25 @@ function plan(){
   /* Spilloppsett: 'fire' = 4 mot 4 på små baner (som før), 'lange' = opptil 3 lange baner med 5 mot 5 og keepere,
      'stasjon' = én av stasjonene er en 5er-bane (30 × 20 m) til høyre der to grupper møtes, og spillet til slutt på lange baner. */
   if(mode==='stasjon'){ const GS=gameStation(game); picks[N-2]=GS; picks[N-1]=GS; }
-  /* Øvelsene som trenger mest plass, får de største feltene – også de du har valgt selv.
-     src[i] husker hvilken plass i overstyringslisten stasjon i kommer fra, så byttemenyen skriver til riktig sted. */
-  const src=[...Array(N).keys()];
-  { const gst=mode==='stasjon', base=gst?cellsIn(0,0,FW-23,FH,N-2):cells(N);
-    const free=[...Array(N).keys()].filter(i=>!(gst&&i>=N-2));
+  /* Plassering på kartet. Stasjonsnummeret følger øvelsen du har valgt: bytter du stasjon 1, står den nye øvelsen på 1.
+     De automatiske øvelsene fordeles på de andre feltene, så de som trenger mest plass, får de største.
+     Har en rad flere felt enn den andre (f.eks. 3 + 2), velges den radfordelingen som gir de store øvelsene mest plass. */
+  const gst=mode==='stasjon', fixedIx=new Set([...manual].concat(gst?[N-2,N-1]:[]));
+  const autoIx=[...Array(N).keys()].filter(i=>!fixedIx.has(i)), autoEx=autoIx.map(i=>picks[i])
+    .sort((a,b)=>spaceNeed(b)-spaceNeed(a)||((b&&b.cat==='Spill')-(a&&a.cat==='Spill')));
+  let best=null;
+  for(const flip of [false,true]){
+    const base=layoutCells(gst,N,flip), pk=picks.slice();
     /* Like store felt: fordel annenhver rad, så hver rad får en blanding av store og små øvelser. */
-    const bySize=free.slice().sort((a,b)=>base[b].w*base[b].h-base[a].w*base[a].h||base[a].x-base[b].x||base[a].y-base[b].y);
-    const ex=free.map(i=>({e:picks[i],o:i})).sort((a,b)=>spaceNeed(b.e)-spaceNeed(a.e)||((b.e&&b.e.cat==='Spill')-(a.e&&a.e.cat==='Spill'))||a.o-b.o);
-    bySize.forEach((i,k)=>{picks[i]=ex[k].e; src[i]=ex[k].o;}); }
+    const bySize=autoIx.slice().sort((a,b)=>base[b].w*base[b].h-base[a].w*base[a].h||base[a].x-base[b].x||base[a].y-base[b].y);
+    bySize.forEach((i,k)=>pk[i]=autoEx[k]);
+    const score=pk.reduce((s,e,i)=>s+(gst&&i>=N-2?0:spaceNeed(e)*base[i].w*base[i].h),0);
+    if(!best||score>best.score+1e-6) best={flip,pk,score}; }
+  picks=best.pk; const flip=best.flip;
   const pitches=mode==='fire'?Math.max(1,Math.min(6,Math.ceil(sz.n/9))):Math.max(1,Math.min(4,Math.ceil(sz.n/11)));  /* 5 mot 5 = keeper + 4, maks 11 per bane (én joker) */
   const pb=Math.floor(sz.n/pitches), pr=sz.n%pitches;
   const pitchSizes=Array.from({length:pitches},(_,i)=>pb+(i<pr?1:0));
-  return {w,key,sz,picks,auto:i=>!(ov[src[i]]&&exA(ov[src[i]])),src,balls,gs,cost:cost(),T,game:mode==='fire'?smallGame(game):bigGame(game),mode,gameFmt:mode==='fire'||(SMALL[game.id]||{}).layout==='four'?fmtGame:fmtGameK,total,stMin,stTotal,gameMin,pitches,pitchSizes,end,rig,drink,
+  return {w,key,sz,picks,auto:i=>!(ov[i]&&exA(ov[i])),flip,balls,gs,cost:cost(),T,game:mode==='fire'?smallGame(game):bigGame(game),mode,gameFmt:mode==='fire'||(SMALL[game.id]||{}).layout==='four'?fmtGame:fmtGameK,total,stMin,stTotal,gameMin,pitches,pitchSizes,end,rig,drink,
     gameBalls:pitches*(Number(game.bpg)||2)};
 }
 
@@ -1542,15 +1548,13 @@ function renderCoaches(){
 
 /* ---------- tegning ---------- */
 /* Celler for stasjonene på kvart bane (meter). */
-function cells(N){
+function cells(N,flip){
   const row=(y,h,k)=>Array.from({length:k},(_,i)=>({x:i*FW/k,y,w:FW/k,h}));
   if(N<=1) return [{x:0,y:0,w:FW,h:FH}];
   if(N===2) return row(0,FH,2);
   if(N===3) return row(0,FH,3);
   if(N===4) return row(0,FH/2,2).concat(row(FH/2,FH/2,2));
-  if(N===5) return row(0,FH/2,3).concat(row(FH/2,FH/2,2));
-  if(N===6) return row(0,FH/2,3).concat(row(FH/2,FH/2,3));
-  const k=Math.ceil(N/2); return row(0,FH/2,k).concat(row(FH/2,FH/2,N-k));
+  const k=flip?Math.floor(N/2):Math.ceil(N/2); return row(0,FH/2,k).concat(row(FH/2,FH/2,N-k));
 }
 /* Plassbehov: arealet fra kortet, vektet med hvor mange som er i aktivitet samtidig
    (alle = 6, kø-øvelser bare de som er i gang). 3 mot 3 + joker trenger mer enn 2 mot 2 på samme mål. */
@@ -1560,6 +1564,7 @@ const ACTIVE={'w40-slalom':2,'w40-1mot1':2,'w40-hjornemal':2,'w40-2mot1':3,'w40-
 function spaceNeed(e){ if(!e) return 0; const m=String(e.area||'').match(/(\d+)\s*[×x]\s*(\d+)/); const a=m?(+m[1])*(+m[2]):300;
   const act=ACTIVE[e.id]!=null?ACTIVE[e.id]:6; return a*(0.5+Math.min(act,7)/12); }
 /* Feltene i hver rad får bredde etter plassbehovet (mellom 70 % og 140 % av snittet). */
+function layoutCells(gst,N,flip){ return gst?cellsIn(0,0,FW-23,FH,N-2,flip).concat([null,null]).slice(0,N):cells(N,flip); }
 function sizeCells(cs,picks){
   const rows={}; cs.forEach((c,i)=>{(rows[c.y.toFixed(2)]=rows[c.y.toFixed(2)]||[]).push(i);});
   Object.values(rows).forEach(ix=>{ if(ix.length<2) return; ix.sort((a,b)=>cs[a].x-cs[b].x);
@@ -1568,11 +1573,11 @@ function sizeCells(cs,picks){
     ix.forEach((i,k)=>{const w=W*sh[k]/tot; cs[i]=Object.assign({},cs[i],{x,w}); x+=w;}); });
   return cs;
 }
-function cellsIn(x0,y0,W,H,n){
+function cellsIn(x0,y0,W,H,n,flip){
   const row=(y,h,k)=>Array.from({length:k},(_,i)=>({x:x0+i*W/k,y,w:W/k,h}));
   if(n<=1) return [{x:x0,y:y0,w:W,h:H}];
   if(n===2) return [{x:x0,y:y0,w:W,h:H/2},{x:x0,y:y0+H/2,w:W,h:H/2}];
-  const k=Math.ceil(n/2); return row(y0,H/2,k).concat(row(y0+H/2,H/2,n-k));
+  const k=flip?Math.floor(n/2):Math.ceil(n/2); return row(y0,H/2,k).concat(row(y0+H/2,H/2,n-k));
 }
 const goal5=(x,y,vert,sideSign)=>{ /* 5er-mål, åpningen 5 m */
   const L=50,D=9; return vert?`<rect x="${x-(sideSign<0?D:0)}" y="${y-L/2}" width="${D}" height="${L}" fill="rgba(255,255,255,.3)" stroke="#fff" stroke-width="3"/>`
@@ -1657,7 +1662,7 @@ function nameBox(r,ids,bib){
 function stationsDrawing(P){
   const N=P.picks.length, gst=P.mode==='stasjon';
   const GR={x:FW-21,y:(FH-30)/2,w:20,h:30};          /* 5er-banen, på høykant til høyre */
-  const cs=sizeCells(gst?cellsIn(0,0,FW-23,FH,N-2):cells(N),P.picks); let s=fieldBase();
+  const cs=sizeCells(gst?cellsIn(0,0,FW-23,FH,N-2,P.flip):cells(N,P.flip),P.picks); let s=fieldBase();
   P.fits=P.picks.map((e,i)=>gst&&i>=N-2?Object.assign({shrunk:false},GR):fit(e,cs[i]));
   P.picks.forEach((e,i)=>{ if(!(gst&&i>=N-2)) s+=stationSvg(P.fits[i],e,BIBS[i%BIBS.length].c); });
   if(gst){ const X=GR.x*U,Y=GR.y*U,W=GR.w*U,H=GR.h*U;
@@ -1760,7 +1765,7 @@ function render(){
     return `<div class="nx-st"><span class="nx-num" style="background:${bib?bib.c:'var(--ink)'};color:${bib?bib.t:'var(--surface)'}">${i+1}</span>
       <div class="nx-t"><a href="#nx-card-${i}"><b>${esc(e.title)}</b></a>${CP.any?`<span class="nx-coach">${CP.byStation[i]?'Trener: '+esc(CP.byStation[i]):'<span style="color:#9A5B00">Ingen trener – ta den sammen med stasjonen ved siden av</span>'}</span>`:''}<span class="hint">${esc(e.cat)} · ${b} ${b===1?'ball':'baller'}${r.shrunk?` · krympet til ${Math.round(r.w)} × ${Math.round(r.h)} m`:''}${NX_ENV.canEdit&&!P.auto(i)?' · <b>valgt manuelt</b>':''}</span>
       ${bib?`<div class="nx-grp"><div class="nx-gl"><span class="nx-sw" style="background:${bib.c}"></span>Starter her: ${esc(bib.n)} gruppe</div><ul>${(NX_ENV.groups()[i]||[]).map(id=>(byId(id)||{}).name).filter(Boolean).sort((a,b)=>a.localeCompare(b,'nb')).map(n=>`<li>${esc(n)}</li>`).join('')}</ul></div>`:''}
-      ${NX_ENV.canEdit?`<select data-i="${P.src?P.src[i]:i}" aria-label="Øvelse på stasjon ${i+1}">${optionsFor(e,P)}</select>`:''}</div></div>`;}).join('');
+      ${NX_ENV.canEdit?`<select data-i="${i}" aria-label="Øvelse på stasjon ${i+1}">${optionsFor(e,P)}</select>`:''}</div></div>`;}).join('');
   const anyOv=P.picks.some((e,i)=>!P.auto(i));
   $('sessPanel').innerHTML=head+`<table class="plan"><tbody>${rows.join('')}</tbody></table>`+
     (P.sz.real?'':`<div class="note">Gruppene er ikke laget ennå. Planen regner med ${P.sz.n} spillere i ${N} grupper. Lag gruppene under «Grupper», så ser du hvilken farge som starter på hvilken stasjon.</div>`)+
