@@ -1408,7 +1408,9 @@ function plan(){
   };
   fill(true,true); fill(false,true); fill(false,false,order.slice().sort((p,q)=>ballsFor(p,gs)-ballsFor(q,gs)));
   const manual=new Set();
-  for(let i=0;i<N;i++){const e=ov[i]&&exA(ov[i]);if(e&&isStation(e)){picks[i]=e;manual.add(i);}}
+  /* Samme øvelse valgt manuelt på to stasjoner (kan skje etter tidligere bytter): bare den første teller. */
+  const seenM=new Set();
+  for(let i=0;i<N;i++){const e=ov[i]&&exA(ov[i]);if(e&&isStation(e)&&!seenM.has(e.id)){seenM.add(e.id);picks[i]=e;manual.add(i);}}
   /* Ble en øvelse valgt manuelt som allerede sto på en annen stasjon, får den andre stasjonen en ny øvelse. */
   for(let i=0;i<N;i++){ if(manual.has(i)) continue;
     if(picks.some((x,j)=>j!==i&&x===picks[i])){ const keep=picks[i]; picks[i]=null;
@@ -1475,7 +1477,7 @@ function plan(){
   const pitches=mode==='fire'?Math.max(1,Math.min(6,Math.ceil(sz.n/9))):Math.max(1,Math.min(4,Math.ceil(sz.n/11)));  /* 5 mot 5 = keeper + 4, maks 11 per bane (én joker) */
   const pb=Math.floor(sz.n/pitches), pr=sz.n%pitches;
   const pitchSizes=Array.from({length:pitches},(_,i)=>pb+(i<pr?1:0));
-  return {w,key,sz,picks,auto:i=>!(ov[i]&&exA(ov[i])),flip,balls,gs,cost:cost(),T,game:mode==='fire'?smallGame(game):bigGame(game),mode,gameFmt:mode==='fire'||(SMALL[game.id]||{}).layout==='four'?fmtGame:fmtGameK,total,stMin,stTotal,gameMin,pitches,pitchSizes,end,rig,drink,
+  return {w,key,sz,picks,auto:i=>!manual.has(i),flip,balls,gs,cost:cost(),T,game:mode==='fire'?smallGame(game):bigGame(game),mode,gameFmt:mode==='fire'||(SMALL[game.id]||{}).layout==='four'?fmtGame:fmtGameK,total,stMin,stTotal,gameMin,pitches,pitchSizes,end,rig,drink,
     gameBalls:pitches*(Number(game.bpg)||2)};
 }
 
