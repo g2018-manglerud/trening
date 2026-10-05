@@ -322,7 +322,7 @@ body.locked #status{display:none}
     <div class="panel">
       <div class="row spread">
         <div>
-          <div class="label">Til stede i dag</div>
+          <div class="label">Til stede på trening</div>
           <div class="count" id="presentCount">0</div>
         </div>
         <div class="row sess-only">
@@ -680,16 +680,28 @@ function renderAvail(box,map,after,ED){
 let gMode='att', actId=null;
 function openAct(id){ actId=id; $('pActName').textContent=byId(id).name; $('pAct').classList.remove('hidden'); $('pActAway').focus(); }
 function closeAct(){ actId=null; $('pAct').classList.add('hidden'); }
-/* Ny dag: alle regnes som til stede igjen, så det bare er de som mangler som må trykkes bort. */
+/* Oppmøtet gjelder neste trening (onsdag). Det som hukes av mellom treningene, blir stående til da.
+   Dagen etter treningen regnes alle spillerne som til stede igjen, og trenerne nullstilles.
+   presentDay = datoen for treningen oppmøtet gjelder. */
+function lastWedBefore(td){ const d=new Date(td+'T12:00:00'); d.setDate(d.getDate()-(((d.getDay()-3+7)%7)||7)); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+const isWedStr=s=>new Date(String(s).slice(0,10)+'T12:00:00').getDay()===3;
 function dailyReset(){
   if(MODE==='loading'||!CANS||!S.groups) return;
-  const td=todayStr(); if(S.presentDay===td) return;
-  /* Lagre forrige trening automatisk: gruppene slik de var den dagen, med bare de som var til stede. */
-  if(S.presentDay){ const T=todayGroups(); const day=S.presentDay;
-    if(T&&!(S.history||[]).some(h=>String(h.date).slice(0,10)===day)){
-      const gs=T.eff.map(g=>g.ids).filter(g=>g.length>1);
-      if(gs.length){ S.history=(S.history||[]).concat([{date:day+'T12:00:00.000Z',groups:gs,auto:true}]).slice(-10); } } }
-  S.present={}; S.players.forEach(p=>S.present[p.id]=true); S.presentDay=td; save();
+  const td=todayStr(), nw=nextWed();
+  /* Rydder bort automatiske historikk-oppføringer fra dager uten trening (fra den gamle dag-for-dag-nullstillingen). */
+  if(Array.isArray(S.history)&&S.history.some(h=>h.auto&&!isWedStr(h.date))){ S.history=S.history.filter(h=>!h.auto||isWedStr(h.date)); if(S.presentDay===nw) save(); }
+  if(S.presentDay===nw) return;
+  /* Har det vært en trening siden oppmøtet ble satt? (Eldre data kan ha en vilkårlig dato.) */
+  const passed=!S.presentDay||S.presentDay<=lastWedBefore(td);
+  if(passed){
+    /* Lagre forrige trening automatisk: gruppene slik de var, med bare de som var til stede. */
+    if(S.presentDay&&isWedStr(S.presentDay)){ const T=todayGroups(); const day=S.presentDay;
+      if(T&&!(S.history||[]).some(h=>String(h.date).slice(0,10)===day)){
+        const gs=T.eff.map(g=>g.ids).filter(g=>g.length>1);
+        if(gs.length){ S.history=(S.history||[]).concat([{date:day+'T12:00:00.000Z',groups:gs,auto:true}]).slice(-10); } } }
+    S.present={}; S.players.forEach(p=>S.present[p.id]=true); S.coachPresent={};
+  }
+  S.presentDay=nw; save();
 }
 function renderAttendance(){
   $('attendance').innerHTML='';
@@ -805,7 +817,7 @@ function renderGroups(){
   const T=todayGroups(); effFrom=T.from;
   const moved=Object.keys(T.from).length;
   $('groupHint').classList.toggle('hidden',!CANS);
-  $('groupHint').innerHTML=!CANS?'':'Trykk på en spiller for å merke spilleren borte eller flytte spilleren. Gruppene jevnes ut av seg selv. Kommer noen likevel, trykk på navnet under «Borte i dag».';
+  $('groupHint').innerHTML=!CANS?'':'Trykk på en spiller for å merke spilleren borte eller flytte spilleren. Gruppene jevnes ut av seg selv. Kommer noen likevel, trykk på navnet under «Borte på trening».';
   unassignedNote($('unassigned'),unassignedPlayers(),'g','ikke i noen gruppe ennå.');
   /* Er nivåene endret siden gruppene ble laget? Da foreslås nye grupper (men de lages ikke uten at du trykker). */
   const changed=S.groupLevels?S.players.filter(p=>S.groupLevels[p.id]!==undefined&&S.groupLevels[p.id]!==p.level).length:0;
@@ -835,7 +847,7 @@ function renderGroups(){
   });
   if(T.absent.length){
     const card=document.createElement('div');card.className='grp';
-    card.innerHTML=`<div class="bib" style="background:var(--surface-2);color:var(--muted)"><span class="nm" style="font-size:18px">Borte i dag</span><span class="st">${T.absent.length}</span></div>`;
+    card.innerHTML=`<div class="bib" style="background:var(--surface-2);color:var(--muted)"><span class="nm" style="font-size:18px">Borte på trening</span><span class="st">${T.absent.length}</span></div>`;
     card.appendChild(playerList(T.absent,'g'));
     box.appendChild(card);
   }
@@ -1979,7 +1991,7 @@ $('tXlsxBtn').onclick=async()=>{
 };
 $('addCoach').onclick=()=>{ const n=$('newCoach').value.trim(); if(!n)return; S.teams.coaches.push({id:uid(),name:n}); $('newCoach').value=''; save(); renderTeamSetup(); $('newCoach').focus(); };
 $('newCoach').addEventListener('keydown',e=>{if(e.key==='Enter')$('addCoach').click();});
-$('genBtn').onclick=()=>{ if(!S.players.length){flash('Legg inn spillere først.','note');return;} sel=null;generate(false);S.presentDay=todayStr();save();render();flash(`Gruppene er laget med alle ${S.players.length} spillerne. Trykk bort dem som ikke er her.`); };
+$('genBtn').onclick=()=>{ if(!S.players.length){flash('Legg inn spillere først.','note');return;} sel=null;generate(false);S.presentDay=nextWed();save();render();flash(`Gruppene er laget med alle ${S.players.length} spillerne. Trykk bort dem som ikke er her.`); };
 $('regenBtn').onclick=()=>{ if(confirmKey!=='regen'){confirmKey='regen';renderAttendance();return;} confirmKey=null; sel=null;generate(true);save();render();flash('Nye grupper er laget. De som er merket borte, er fortsatt borte.'); };
 $('saveBtn').onclick=()=>{
   if(!S.groups){flash('Lag gruppene først.','note');return;}
