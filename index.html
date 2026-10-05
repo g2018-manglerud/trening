@@ -547,8 +547,8 @@ let dirty=false, writing=false, saveTimer=null, changeNo=0;
 
 /* To dokumenter: team/main (spillere, nivåer, lag, innstillinger – bare eieren skriver)
    og session/current (oppmøte, grupper, historikk – eieren og trenere med Bidragsyter-tilgang skriver). */
-const sessPart=()=>({present:S.present||{},presentDay:S.presentDay||null,groups:S.groups||null,groupLevels:S.groupLevels||null,history:S.history||[],coachPresent:S.coachPresent||{},lead:S.lead||null});
-const mainPart=()=>{const o=Object.assign({},S);delete o.present;delete o.groups;delete o.history;delete o.coachPresent;delete o.lead;delete o.presentDay;delete o.groupLevels;return o;};
+const sessPart=()=>({present:S.present||{},presentDay:S.presentDay||null,groups:S.groups||null,groupLevels:S.groupLevels||null,history:S.history||[],coachPresent:S.coachPresent||{},coachHomes:S.coachHomes||null,lead:S.lead||null});
+const mainPart=()=>{const o=Object.assign({},S);delete o.present;delete o.groups;delete o.history;delete o.coachPresent;delete o.coachHomes;delete o.lead;delete o.presentDay;delete o.groupLevels;return o;};
 function save(){
   syncCurrent();
   if(MODE==='local'){ saveLocal(); return; }
@@ -571,7 +571,7 @@ async function flushShared(){
   }
   writing=false;
 }
-function applySess(d){ S.groupLevels=d.groupLevels||null; S.presentDay=d.presentDay||null; S.lead=d.lead||null; S.coachPresent=d.coachPresent||{}; S.present=d.present||{}; S.groups=d.groups||null; S.history=Array.isArray(d.history)?d.history:[]; }
+function applySess(d){ S.groupLevels=d.groupLevels||null; S.presentDay=d.presentDay||null; S.lead=d.lead||null; S.coachPresent=d.coachPresent||{}; S.coachHomes=d.coachHomes||null; S.present=d.present||{}; S.groups=d.groups||null; S.history=Array.isArray(d.history)?d.history:[]; }
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const byId=id=>S.players.find(p=>p.id===id);
@@ -1530,8 +1530,10 @@ function smallGame(g){
 }
 
 /* Trenere: hver trener har en fast stasjon i perioden (så lenge stasjonene er de samme).
-   Rekkefølgen stokkes én gang per periode. Stasjon k har trener nr. k som førstevalg, deretter k+N, k+2N osv.
-   Trenere som blir til overs, fyller stasjoner som mangler trener. */
+   Første gang i en periode fordeles trenerne slik: rekkefølgen stokkes én gang per periode, stasjon k har trener nr. k
+   som førstevalg, deretter k+N, k+2N osv. Fordelingen lagres (NX_ENV.setCoachHomes), så den ikke endrer seg når nye
+   trenere legges inn i listen. En ny trener får en stasjon som ingen har fra før. Er en trener borte, tar en trener
+   uten fast stasjon den stasjonen den dagen (lagres ikke). */
 function coachPlan(P){
   const all=NX_ENV.coachList(), here=NX_ENV.coachPresent(), N=P.picks.length;
   if(!all.length) return {byStation:new Array(N).fill(null),extra:[],any:false};
@@ -1540,10 +1542,26 @@ function coachPlan(P){
   /* Hovedtreneren går rundt mellom stasjonene, og tar bare en stasjon hvis den ellers ville stått uten trener. */
   const head=(NX_ENV.settings().headCoach)||'Alexander Sørlie';
   const order=all.filter(c=>c!==head); for(let i=order.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
-  const by=new Array(N).fill(null), used=new Set();
-  for(let k=0;k<N;k++) for(let c=k;c<order.length;c+=N){ if(here[order[c]]&&!used.has(order[c])){by[k]=order[c];used.add(order[c]);break;} }
+  const stored=(NX_ENV.coachHomes?NX_ENV.coachHomes():{})[P.key];
+  const homes=Object.assign({},stored||{});
+  const by=new Array(N).fill(null), used=new Set(); let changed=false;
+  const take=(k,c)=>{by[k]=c;used.add(c);};
+  if(!stored){
+    for(let k=0;k<N;k++) for(let c=k;c<order.length;c+=N){ if(here[order[c]]&&!used.has(order[c])){take(k,order[c]);break;} }
+  } else {
+    /* Trenere med fast stasjon tar den. */
+    for(const c of order){ const k=homes[c]; if(here[c]&&Number.isInteger(k)&&k<N&&!by[k]) take(k,c); }
+    /* Trenere uten fast stasjon får en stasjon som ingen har fra før, og den blir deres faste. */
+    const owned=new Set(Object.keys(homes).filter(c=>all.includes(c)&&c!==head&&homes[c]<N).map(c=>homes[c]));
+    for(const c of order){ if(!here[c]||used.has(c)) continue; if(Number.isInteger(homes[c])&&homes[c]<N) continue;
+      const k=[...Array(N).keys()].find(k=>!by[k]&&!owned.has(k)); if(k===undefined) break;
+      take(k,c); homes[c]=k; owned.add(k); changed=true; }
+  }
   const rest=order.filter(c=>here[c]&&!used.has(c));
+  /* Stasjoner som står uten trener i dag (fast trener borte), fylles av trenere uten stasjon. */
   for(let k=0;k<N&&rest.length;k++) if(!by[k]){by[k]=rest.shift();}
+  if(!stored&&by.some(Boolean)){ by.forEach((c,k)=>{if(c) homes[c]=k;}); changed=true; }
+  if(changed&&NX_ENV.setCoachHomes) NX_ENV.setCoachHomes(P.key,homes);
   let headFree=false;
   if(all.includes(head)&&here[head]){ const k=by.indexOf(null); if(k>-1) by[k]=head; else headFree=true; }
   return {byStation:by,extra:rest,head:headFree?head:null,any:Object.keys(here).some(k=>here[k])};
@@ -1842,6 +1860,9 @@ const NX_ENV={
   rosterCount:()=>S.players.length,
   coachList:()=>((S.teams&&S.teams.coaches)||[]).map(c=>c.name).filter(Boolean),
   coachPresent:()=>S.coachPresent||{},
+  /* Fast stasjon per trener i perioden: {periode: {trener: stasjon}}. Bare den gjeldende perioden lagres. */
+  coachHomes:()=>S.coachHomes||{},
+  setCoachHomes:(key,map)=>{ if(!CANS) return; S.coachHomes={[key]:map}; save(); },
   toggleCoach:n=>{ if(!CANS) return; S.coachPresent=S.coachPresent||{}; if(S.coachPresent[n]) delete S.coachPresent[n]; else S.coachPresent[n]=true; save(); render(); },
   setMinutes:m=>{ S.settings.minutes=m; save(); render(); },
   override:(d,i,id,N)=>{ if(!S.wheel||typeof S.wheel!=='object') S.wheel={themes:{}}; if(!S.wheel.sessions) S.wheel.sessions={};
@@ -2223,7 +2244,7 @@ function startShared(owner){
     if(CAN && (dirty || writing || snap.metadata.hasPendingWrites)) { startSession(); return; }
     const cur=JSON.parse(JSON.stringify(data)); delete cur.updatedAt;
     if(!validState(cur)) { startSession(); return; }
-    cur.groupLevels=S.groupLevels||null; cur.presentDay=S.presentDay||null; cur.lead=S.lead||null; cur.coachPresent=S.coachPresent||{}; cur.present=S.present||{}; cur.groups=S.groups||null; cur.history=Array.isArray(S.history)?S.history:[];
+    cur.groupLevels=S.groupLevels||null; cur.presentDay=S.presentDay||null; cur.lead=S.lead||null; cur.coachPresent=S.coachPresent||{}; cur.coachHomes=S.coachHomes||null; cur.present=S.present||{}; cur.groups=S.groups||null; cur.history=Array.isArray(S.history)?S.history:[];
     S=cur; lastM=JSON.stringify(mainPart()); if(CAN) saveLocal(); render(); startSession();
   },lostConn);
   render();
@@ -2237,7 +2258,7 @@ $('migrateBtn').onclick=()=>{
   if(confirmKey!=='migrate'){ confirmKey='migrate'; $('migrateBtn').textContent=`Bekreft: erstatt med ${main.players.length} spillere`; return; }
   confirmKey=null; $('migrateBtn').textContent='Flytt dataene hit';
   const cur=JSON.parse(JSON.stringify(main)); delete cur.updatedAt; delete cur.sample;
-  cur.groupLevels=sess.groupLevels||null; cur.presentDay=sess.presentDay||null; cur.coachPresent=sess.coachPresent||{}; cur.present=sess.present||cur.present||{}; cur.groups=sess.groups||cur.groups||null; cur.history=Array.isArray(sess.history)?sess.history:(cur.history||[]);
+  cur.groupLevels=sess.groupLevels||null; cur.presentDay=sess.presentDay||null; cur.coachPresent=sess.coachPresent||{}; cur.coachHomes=sess.coachHomes||null; cur.present=sess.present||cur.present||{}; cur.groups=sess.groups||cur.groups||null; cur.history=Array.isArray(sess.history)?sess.history:(cur.history||[]);
   S=cur; if(S.groups) cleanGroups(); save(); render();
   $('migrateBox').value=''; $('migrateMsg').innerHTML=`<div class="ok">Ferdig. ${S.players.length} spillere er flyttet over, og alle trenere ser dem nå.</div>`;
 };
