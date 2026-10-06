@@ -432,6 +432,17 @@ body.locked #status{display:none}
       <h2>Lagrede lagoppsett</h2>
       <div class="hint">Nyeste øverst. Trykk på en linje for å se lagene.</div>
       <div id="savedList"></div>
+      <details class="edit-only" id="impBox">
+        <summary class="linkbtn" style="cursor:pointer">Importer et tidligere lagoppsett</summary>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+          <div class="hint">Lim inn lag fra for eksempel seriespillet. Skriv lagnavnet på en egen linje (for eksempel «Gul»), og spillerne under, ett navn per linje eller skilt med komma. Når du lager nye lag, prøver appen å unngå at de samme spillerne havner på lag sammen igjen. Slett det importerte oppsettet når det ikke trengs lenger.</div>
+          <label class="label" for="impLabel">Navn på oppsettet</label>
+          <input type="text" id="impLabel" placeholder="For eksempel: Seriespill høst 2026">
+          <textarea id="impText" rows="9" placeholder="Gul&#10;Navn Navnesen&#10;Navn Navnesen&#10;&#10;Blå&#10;..."></textarea>
+          <div class="row"><button class="btn small primary" id="impApply" type="button">Importer</button></div>
+          <div id="impResult"></div>
+        </div>
+      </details>
     </div>
     <div class="panel edit-only">
       <h2>Trenere og barn</h2>
@@ -958,10 +969,14 @@ function cleanTeams(){
   const T=S.teams; if(!T||!T.current) return;
   T.current=T.current.map(g=>g.filter(id=>byId(id)&&T.present[id]));
 }
+/* Importerte lagoppsett (f.eks. fra seriespillet) teller mye mer enn vanlige oppsett, så appen unngår å sette
+   de samme spillerne sammen igjen. De teller så lenge de ligger i «Lagrede lagoppsett». */
+const IMPORT_WEIGHT=5;
 function teamPairWeights(includeCurrent){
-  const T=S.teams, m=new Map(), h=T.history.filter(e=>e.id!==T.currentId).slice(-10);
+  const T=S.teams, m=new Map(), h=T.history.filter(e=>e.id!==T.currentId&&!e.imported).slice(-10);
   const add=(groups,w)=>groups.forEach(g=>{for(let i=0;i<g.length;i++)for(let j=i+1;j<g.length;j++){const k=g[i]<g[j]?g[i]+'|'+g[j]:g[j]+'|'+g[i];m.set(k,(m.get(k)||0)+w);}});
   h.forEach((s,i)=>add(s.teams,Math.pow(0.8,h.length-1-i)));
+  T.history.filter(e=>e.imported).forEach(e=>add(e.teams,IMPORT_WEIGHT));
   if(includeCurrent&&T.current) add(T.current,1.5);
   return m;
 }
@@ -1046,7 +1061,7 @@ function renderSaved(){
     d.addEventListener('toggle',()=>{ if(d.open) openSaved.add(e.id); else openSaved.delete(e.id); });
     const n=e.teams.reduce((a,g)=>a+g.filter(id=>byId(id)).length,0);
     const sm=document.createElement('summary');
-    sm.innerHTML=`<span class="sv-t"><b>${esc(entryLabel(e))}${e.id===T.currentId?'<span class="cur-tag">Nåværende</span>':''}</b><span>${new Date(e.date).toLocaleDateString('nb-NO',{day:'numeric',month:'long',year:'numeric'})} · ${e.teams.length} lag · ${n} spillere</span></span><svg class="chev" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7.5 L10 12.5 L15 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    sm.innerHTML=`<span class="sv-t"><b>${esc(entryLabel(e))}${e.id===T.currentId?'<span class="cur-tag">Nåværende</span>':''}${e.imported?'<span class="cur-tag">Importert · unngås</span>':''}</b><span>${new Date(e.date).toLocaleDateString('nb-NO',{day:'numeric',month:'long',year:'numeric'})} · ${e.teams.length} lag · ${n} spillere</span></span><svg class="chev" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7.5 L10 12.5 L15 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     d.appendChild(sm);
     const body=document.createElement('div'); body.className='sv-body';
     const grid=document.createElement('div'); grid.className='groups';
@@ -1923,6 +1938,32 @@ $('tPasteApply').onclick=()=>{
   S.teams.present={}; found.forEach(id=>S.teams.present[id]=true); cleanTeams(); save(); render();
   $('tPastePanel').classList.remove('hidden');
   pasteReport($('tPasteResult'),found,miss,'tilgjengelige');
+};
+/* Engangs-import av et tidligere lagoppsett. Lagnavn på egen linje (inneholder en lagfarge, eller slutter med «:»),
+   spillerne under. Tom linje skiller også lag. */
+function parseTeamImport(text){
+  const colors=['grønn','blå','gul','hvit','rød','svart','oransje','lilla','rosa'];
+  const isHead=l=>/:\s*$/.test(l)||(l.split(/\s+/).length<=4&&colors.some(c=>norm(l).split(' ').includes(norm(c)))&&!S.players.some(p=>norm(p.name)===norm(l)));
+  const blocks=[]; let cur=null;
+  text.split(/\n/).map(s=>s.trim()).forEach(l=>{
+    if(!l){ if(cur&&cur.lines.length) cur=null; return; }
+    if(isHead(l)){ cur={name:l.replace(/:\s*$/,''),lines:[]}; blocks.push(cur); return; }
+    if(!cur){ cur={name:'',lines:[]}; blocks.push(cur); }
+    cur.lines.push(l);
+  });
+  return blocks.filter(b=>b.lines.length).map((b,i)=>{ const r=matchNames(b.lines.join('\n'));
+    return {name:b.name||('Lag '+(i+1)),ids:[...r.found],miss:r.miss}; });
+}
+$('impApply').onclick=()=>{
+  if(!CAN) return;
+  const teams=parseTeamImport($('impText').value);
+  if(!teams.length){$('impResult').innerHTML='<div class="note">Lim inn minst ett lag først.</div>';return;}
+  const seen=new Set(); teams.forEach(t=>{t.ids=t.ids.filter(id=>!seen.has(id)&&seen.add(id));});
+  const e={id:uid(),date:new Date().toISOString(),label:$('impLabel').value.trim()||'Importert lagoppsett',names:teams.map(t=>t.name),teams:teams.map(t=>t.ids),imported:true};
+  S.teams.history.push(e); openSaved.add(e.id); save(); render();
+  const miss=teams.flatMap(t=>t.miss);
+  $('impResult').innerHTML=`<div class="${miss.length?'note':'ok'}">Importerte ${teams.length} lag: ${teams.map(t=>esc(t.name)+' ('+t.ids.length+')').join(', ')}.${miss.length?` <b>Fant ikke:</b> ${miss.map(esc).join(', ')}. Sjekk stavemåten, slett oppsettet og importer på nytt.`:''}</div>`;
+  $('impText').value='';
 };
 let labelTimer=null;
 $('tLabel').addEventListener('input',()=>{if(!CAN)return;S.teams.label=$('tLabel').value;clearTimeout(labelTimer);labelTimer=setTimeout(save,500);});
