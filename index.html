@@ -1488,9 +1488,9 @@ function plan(){
     const fill=spills.concat(teks); free.forEach((i,k)=>picks[i]=fill[k]||picks[i]);
   }
   const total=Number(set.minutes)===75?75:60;
-  /* Tidsplan: 5 min rigg, stasjoner (minst 6 min hver), 2 min drikkepause, spill (mål 20 min).
+  /* Tidsplan: 10 min rigg, stasjoner (minst 6 min hver), 2 min drikkepause, spill (mål 20 min).
      Strekker ikke tiden til, krymper spillet. Samlingen tas etter treningen og har ingen minutter. */
-  const rig=5, drink=2, change=1, end=0, GAME_TARGET=20, ST_MIN=6, ST_MAX=10;
+  const rig=10, drink=2, change=1, end=0, GAME_TARGET=20, ST_MIN=6, ST_MAX=10;
   /* Drikkepause etter hver 2. stasjon (barnas ønske). Pausen erstatter byttet, og gruppene går rett til neste stasjon etterpå.
      «Stasjoner, så spill» har i tillegg en drikkepause før spillet. */
   const breaks=onSt?Math.floor((N-1)/2):0, changes=onSt?N-1-breaks:N-1;
@@ -1870,7 +1870,8 @@ function conePacks(P){
 }
 function gameSummary(P){const c={};P.pitchSizes.forEach(n=>{const t=P.gameFmt(n);c[t]=(c[t]||0)+1;});return Object.entries(c).map(([t,k])=>`${k} ${k===1?'bane':'baner'} med ${t}`).join(', ');}
 /* ---------- visning ---------- */
-const range=(a,b)=>`${a}–${b}`;
+/* Fra–til i minutter, og varigheten på egen linje under. */
+const range=(a,b)=>`${a}–${b} min<span style="display:block;color:var(--ink);font-weight:700">${b-a} min</span>`;
 function render(){
   const P=plan(), N=P.picks.length, w=P.w;
   const head=`<div class="row spread"><div><div class="label">${w.date===todayStr()?'Dagens økt':'Neste trening'}</div>
@@ -1883,26 +1884,26 @@ function render(){
       <span class="hint">${w.p?esc(w.p.name)+(w.n?` · trening ${w.i+1} av ${w.n}`:''):''}</span></div>
     ${P.T?`<div><b>Si til barna:</b> ${esc(TFOCUS[w.t])}</div>`:''}`;
   let t=0; const rows=[];
-  rows.push(`<tr><td class="tm">${range(0,P.rig)} min</td><td><b>Rigg:</b> hovedtrener deler barna inn i grupper, mens hjelpetrenerne setter opp stasjonene.</td></tr>`);
+  rows.push(`<tr><td class="tm">${range(0,P.rig)}</td><td><b>Rigg:</b> Hovedtrener deler barna inn i grupper, mens hjelpetrenerne setter opp stasjonene.</td></tr>`);
   t=P.rig;
   if(P.onSt){
     const nSp=P.picks.filter(e=>e.cat==='Spill').length;
     for(let k=0;k<N;k+=2){ const c=Math.min(2,N-k), len=c*P.stMin+(c-1)*P.change;
       const first=k===0?(P.mode==='kort'?` Samme stasjoner som før – barna kan øvelsene, så hver stasjon er kortere i dag. Bytt til neste nummer når treneren blåser (${N} → 1).`
         :` ${nSp} av de ${N} stasjonene er spill, resten er tekniske øvelser. Bytt til neste nummer når treneren blåser (${N} → 1).`):'';
-      rows.push(`<tr><td class="tm">${range(t,t+len)} min</td><td><b>Stasjoner, runde ${k+1}${c>1?'–'+(k+c):''}:</b> ${c} × ${P.stMin} min.${first}</td></tr>`);
+      rows.push(`<tr><td class="tm">${range(t,t+len)}</td><td><b>Stasjoner, runde ${k+1}${c>1?'–'+(k+c):''}:</b> ${c} × ${P.stMin} min.${first}</td></tr>`);
       t+=len;
-      if(k+c<N){ rows.push(`<tr><td class="tm">${range(t,t+P.drink)} min</td><td><b>Drikkepause</b> <span class="hint">– gruppene går rett til neste stasjon etterpå</span></td></tr>`); t+=P.drink; }
+      if(k+c<N){ rows.push(`<tr><td class="tm">${range(t,t+P.drink)}</td><td><b>Drikkepause</b> <span class="hint">Gruppene går rett til neste stasjon etterpå.</span></td></tr>`); t+=P.drink; }
     }
     if(P.mode==='kort'){
-      rows.push(`<tr><td class="tm">${range(t,t+P.drink)} min</td><td><b>Drikkepause</b></td></tr>`); t+=P.drink;
-      rows.push(`<tr><td class="tm">${range(t,t+P.gameMin)} min</td><td><b>Spill:</b> <a href="#nx-card-game">${esc(P.game.title)}</a><div class="hint">${P.pitches} ${P.pitches===1?'bane':'baner'}, ingen innbyttere: ${esc(gameSummary(P))}. Bruk kjeglene fra stasjonene.</div></td></tr>`); t+=P.gameMin;
+      rows.push(`<tr><td class="tm">${range(t,t+P.drink)}</td><td><b>Drikkepause</b></td></tr>`); t+=P.drink;
+      rows.push(`<tr><td class="tm">${range(t,t+P.gameMin)}</td><td><b>Spill:</b> <a href="#nx-card-game">${esc(P.game.title)}</a><div class="hint">${P.pitches} ${P.pitches===1?'bane':'baner'}, ingen innbyttere: ${esc(gameSummary(P))}. Bruk kjeglene fra stasjonene.</div></td></tr>`); t+=P.gameMin;
     }
     rows.push(`<tr><td class="tm"></td><td>Samling: «Hva var gøy i dag?»${P.T?` og «${['Hvem fikk spilt ballen fremover?','Hvem scoret eller prøvde å skyte?','Hvem vant ballen?','Hvem stoppet et skudd?'][w.t]}»`:''}</td></tr>`);
   } else {
-  rows.push(`<tr><td class="tm">${range(t,t+P.stTotal)} min</td><td><b>Stasjoner:</b> ${N} × ${P.stMin} min. Gruppene starter på hver sin stasjon og bytter til neste nummer når treneren blåser (${N} → 1).</td></tr>`);
-  t+=P.stTotal; rows.push(`<tr><td class="tm">${range(t,t+P.drink)} min</td><td><b>Drikkepause</b></td></tr>`);
-  t+=P.drink; rows.push(`<tr><td class="tm">${range(t,t+P.gameMin)} min</td><td><b>Spill:</b> <a href="#nx-card-game">${esc(P.game.title)}</a><div class="hint">${P.pitches} ${P.pitches===1?'bane':'baner'}, ingen innbyttere: ${esc(gameSummary(P))}. Bruk kjeglene fra stasjonene.</div></td></tr>`);
+  rows.push(`<tr><td class="tm">${range(t,t+P.stTotal)}</td><td><b>Stasjoner:</b> ${N} × ${P.stMin} min. Gruppene starter på hver sin stasjon og bytter til neste nummer når treneren blåser (${N} → 1).</td></tr>`);
+  t+=P.stTotal; rows.push(`<tr><td class="tm">${range(t,t+P.drink)}</td><td><b>Drikkepause</b></td></tr>`);
+  t+=P.drink; rows.push(`<tr><td class="tm">${range(t,t+P.gameMin)}</td><td><b>Spill:</b> <a href="#nx-card-game">${esc(P.game.title)}</a><div class="hint">${P.pitches} ${P.pitches===1?'bane':'baner'}, ingen innbyttere: ${esc(gameSummary(P))}. Bruk kjeglene fra stasjonene.</div></td></tr>`);
   t+=P.gameMin; rows.push(`<tr><td class="tm"></td><td>Samling: «Hva var gøy i dag?»${P.T?` og «${['Hvem fikk spilt ballen fremover?','Hvem scoret eller prøvde å skyte?','Hvem vant ballen?','Hvem stoppet et skudd?'][w.t]}»`:''}</td></tr>`);
   }
   const over=P.cost>P.balls;
