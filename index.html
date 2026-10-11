@@ -1350,7 +1350,7 @@ function moveEl(el,x0,y0,x1,y1,dur,sc){
 function animPlay(card,e,startF,endF){
   const A=e.anim, S=animStates(A), stage=card.querySelector('.anim-stage'); if(!stage) return;
   const run={stop:false}; const old=ANIMRUN.get(card); if(old) old.stop=true; ANIMRUN.set(card,run);
-  const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduce=false; /* bevisst: brukeren har selv trykket på avspilling, så bevegelsen vises alltid jevnt */
   const btn=card.querySelector('.anim-play'), cap=card.querySelector('.anim-cap');
   const mark=step=>card.querySelectorAll('[data-step]').forEach(d=>d.classList.toggle('on',d.dataset.step===step));
   animSet(stage,A,S[startF]); if(btn) btn.textContent='❚❚ Stopp';
