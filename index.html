@@ -1457,11 +1457,30 @@ function plan(){
      så stasjonene blir kortere og det blir spill til slutt («Stasjoner, så spill»). Kan overstyres per trening. */
   let mode=NX_ENV.modeTest&&['fire','lange','stasjon'].includes(set.gameMode)?set.gameMode:null;
   const fmtOv=(NX_ENV.wheelState().formats||{})[w.date];
-  const autoFmt=(w.i===undefined||w.i<2)?'stspill':'kort';
-  const fmtAuto=!['stspill','kort'].includes(fmtOv);
+  const total=Number(set.minutes)===75?75:60;
+  /* Fra trening 3: 75 min = «Stasjoner, så spill», 60 min = «Felles øvelser» (alle gruppene gjør samme øvelse samtidig). */
+  const autoFmt=(w.i===undefined||w.i<2)?'stspill':(total===60?'felles':'kort');
+  const fmtAuto=!['stspill','kort','felles'].includes(fmtOv);
   const testMode=!!mode;
   if(!mode) mode=fmtAuto?autoFmt:fmtOv;
   if(mode==='stasjon'&&N<3) mode='lange';
+  /* «Felles øvelser»: to tekniske øvelser fra temaet som bruker samme kjegleoppsett, så kjeglene kan stå til øvelse 2.
+     Hver gruppe har sitt felt med sin trener. Finnes det ikke et slikt par, brukes «Stasjoner, så spill». */
+  let felles=null;
+  if(mode==='felles'){
+    const FAM={twolines:'linjer',stopline:'linjer',gates:'porter',gates6:'porter'}, BIG={linjer:['twolines','stopline'],porter:['gates6','gates']};
+    const fam=e=>FAM[layoutOf(e)]||layoutOf(e);
+    const cand=order.filter(e=>e.cat!=='Spill'&&layoutOf(e)!=='none'&&isStation(e));
+    let pair=null;
+    for(const a of cand){ const b=cand.find(x=>x!==a&&fam(x)===fam(a)); if(b){pair=[a,b];break;} }
+    if(!pair) mode='kort';
+    else {
+      pair.sort((a,b)=>(a.cat==='Sjef over ballen'?0:1)-(b.cat==='Sjef over ballen'?0:1));
+      const rank=e=>{const r=(BIG[fam(e)]||[]).indexOf(layoutOf(e));return r<0?0:r;};
+      const setup=rank(pair[0])<=rank(pair[1])?pair[0]:pair[1];   /* oppsettet som har flest kjegler, så begge øvelsene får plass */
+      felles={e1:pair[0],e2:pair[1],setup}; picks=new Array(N).fill(setup); manual.clear();
+    }
+  }
   const onSt=mode==='stspill'||mode==='kort';
   /* «Spill på stasjonene»: et par av stasjonene er spill (f.eks. endesone, 3 mot 3), resten er tekniske øvelser.
      Spill-stasjonene står i de største feltene. Ikke noe eget spill til slutt. */
@@ -1487,7 +1506,6 @@ function plan(){
       if(!alt) break; taken.add(alt); teks[k]=alt; }
     const fill=spills.concat(teks); free.forEach((i,k)=>picks[i]=fill[k]||picks[i]);
   }
-  const total=Number(set.minutes)===75?75:60;
   /* Tidsplan: 10 min rigg, stasjoner (minst 6 min hver), 2 min drikkepause, spill (mål 20 min).
      Strekker ikke tiden til, krymper spillet. Samlingen tas etter treningen og har ingen minutter. */
   const rig=10, drink=2, change=1, end=0, GAME_TARGET=20, ST_MIN=6, ST_MAX=10;
@@ -1499,10 +1517,14 @@ function plan(){
     stMin=Math.max(ST_MIN,Math.min(12,Math.floor((total-rig-breaks*drink-changes*change)/N)));
     stTotal=N*stMin+changes*change+breaks*drink; gameMin=0;
   } else if(mode==='kort'){
-    /* Kortere stasjoner (4–6 min, barna kan øvelsene), og spill fra omtrent halvveis. */
-    const half=Math.round(total/2);
-    stMin=Math.max(4,Math.min(6,Math.round((total-rig-(breaks+1)*drink-changes*change-half)/N)));
+    /* Stasjonene varer minst 7–8 min (Alexander, 11. okt): 8 min hvis spillet da får minst 15 min, ellers 7. Resten er spill. */
+    const fixed=rig+(breaks+1)*drink+changes*change;
+    stMin=(total-fixed-N*8>=15)?8:7;
     stTotal=N*stMin+changes*change+breaks*drink; gameMin=Math.max(0,total-rig-stTotal-drink);
+  } else if(mode==='felles'){
+    /* To øvelser etter hverandre med drikkepause imellom, så drikkepause og spill (mål 20 min). */
+    stMin=Math.max(8,Math.min(15,Math.floor((total-rig-2*drink-GAME_TARGET)/2)));
+    stTotal=2*stMin+drink; gameMin=Math.max(0,total-rig-stTotal-drink);
   } else {
     const avail=total-rig-drink;
     stMin=Math.max(ST_MIN,Math.min(ST_MAX,Math.floor((avail-GAME_TARGET-(N-1)*change)/N)));
@@ -1530,7 +1552,7 @@ function plan(){
   const pitches=mode==='fire'?Math.max(1,Math.min(6,Math.ceil(sz.n/9))):Math.max(1,Math.min(4,Math.ceil(sz.n/11)));  /* 5 mot 5 = keeper + 4, maks 11 per bane (én joker) */
   const pb=Math.floor(sz.n/pitches), pr=sz.n%pitches;
   const pitchSizes=Array.from({length:pitches},(_,i)=>pb+(i<pr?1:0));
-  return {w,key,sz,picks,auto:i=>!manual.has(i),flip,balls,gs,cost:cost(),T,game:mode==='fire'?smallGame(game):bigGame(game),mode,onSt,fmtAuto,autoFmt,testMode,breaks,change,gameFmt:mode==='fire'||(SMALL[game.id]||{}).layout==='four'?fmtGame:fmtGameK,total,stMin,stTotal,gameMin,pitches,pitchSizes,end,rig,drink,
+  return {w,key,sz,picks,auto:i=>!manual.has(i),flip,balls,gs,cost:felles?N*Math.max(ballsFor(felles.e1,gs),ballsFor(felles.e2,gs)):cost(),T,game:mode==='fire'?smallGame(game):bigGame(game),mode,onSt,felles,fmtAuto,autoFmt,testMode,breaks,change,gameFmt:mode==='fire'||(SMALL[game.id]||{}).layout==='four'?fmtGame:fmtGameK,total,stMin,stTotal,gameMin,pitches,pitchSizes,end,rig,drink,
     gameBalls:pitches*(Number(game.bpg)||2)};
 }
 
@@ -1755,7 +1777,7 @@ function stationsDrawing(P){
     const SL=sizeLabel(r,e,(obs[i]||[]).concat([bb],PK.box?[PK.box]:[]),BP);
     s+=badge(BP[0]+18,BP[1]+18,i+1,bib,null)+SL.svg+PK.svg;
     { /* Navnet på øvelsen nederst i stasjonen, så kartet viser hva som står hvor */
-      const maxC=Math.floor((r.w*U-12)/6.6); let t=e.title; if(t.length>maxC) t=t.slice(0,maxC-1).trim()+'…';
+      const maxC=Math.floor((r.w*U-12)/6.6); let t=P.felles?`Felt ${i+1}`:e.title; if(t.length>maxC) t=t.slice(0,maxC-1).trim()+'…';
       s+=`<text x="${(r.x+r.w/2)*U}" y="${(r.y+r.h)*U-8}" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="12.5" fill="#fff" stroke="#1f3d26" stroke-width="3" paint-order="stroke">${esc(t)}</text>`; }
 });
   return wrapSvg(s+edgeLabels(),'Baneoversikt med stasjonene');
@@ -1878,15 +1900,23 @@ function render(){
       <h2 style="font-size:26px">${esc(dTxt(w.date,{weekday:'long',day:'numeric',month:'long'}).replace(/^./,c=>c.toUpperCase()))}</h2></div>
       <div class="seg" id="nxMin" role="group" aria-label="Lengde på treningen">${[60,75].map(m=>`<button type="button" data-m="${m}" aria-pressed="${P.total===m}">${m} min</button>`).join('')}</div></div>
     ${NX_ENV.canEdit&&NX_ENV.modeTest?`<div class="row noprint" style="gap:8px"><span class="hint"><b>Spilloppsett:</b></span><div class="seg" id="nxMode" role="group" aria-label="Spilloppsett">${[['fire','4 små baner – Test'],['lange','Lange baner – Test'],['stasjon','Spillstasjon – Test'],['stspill','Vanlig (format under) – Publisert']].map(([v,t])=>`<button type="button" data-v="${v}" aria-pressed="${v==='stspill'?!P.testMode:P.mode===v}">${t}</button>`).join('')}</div></div>`:''}
-    ${NX_ENV.canEdit&&NX_ENV.setFormat&&!P.testMode?`<div class="row noprint" style="gap:8px"><span class="hint"><b>${esc(NX_ENV.fmtLabel||'Format')}:</b></span><div class="seg" id="nxFmt" role="group" aria-label="Format">${[['auto','Automatisk'],['stspill','Spill på stasjonene'],['kort','Stasjoner, så spill']].map(([v,t])=>`<button type="button" data-v="${v}" aria-pressed="${v==='auto'?P.fmtAuto:!P.fmtAuto&&P.mode===v}">${t}</button>`).join('')}</div>
-      <span class="hint">${P.fmtAuto?`Automatisk: ${w.n?`trening ${w.i+1} i perioden gir `:''}«${P.autoFmt==='kort'?'Stasjoner, så spill':'Spill på stasjonene'}». Trening 1–2 har spill på stasjonene, deretter kortere stasjoner og spill til slutt.`:'Valgt manuelt for denne treningen.'}</span></div>`:''}
+    ${NX_ENV.canEdit&&NX_ENV.setFormat&&!P.testMode?`<div class="row noprint" style="gap:8px"><span class="hint"><b>${esc(NX_ENV.fmtLabel||'Format')}:</b></span><div class="seg" id="nxFmt" role="group" aria-label="Format">${[['auto','Automatisk'],['stspill','Spill på stasjonene'],['kort','Stasjoner, så spill'],['felles','Felles øvelser']].map(([v,t])=>`<button type="button" data-v="${v}" aria-pressed="${v==='auto'?P.fmtAuto:!P.fmtAuto&&P.mode===v}">${t}</button>`).join('')}</div>
+      <span class="hint">${P.fmtAuto?`Automatisk: ${w.n?`trening ${w.i+1} i perioden gir `:''}«${{kort:'Stasjoner, så spill',felles:'Felles øvelser'}[P.autoFmt]||'Spill på stasjonene'}». Trening 1–2 har spill på stasjonene. Fra trening 3: på 75 min stasjoner og så spill, på 60 min to felles øvelser og så spill.${P.autoFmt==='felles'&&P.mode!=='felles'?' Temaet har ikke to øvelser med samme kjegler, så det blir stasjoner og spill.':''}`:'Valgt manuelt for denne treningen.'}</span></div>`:''}
     <div class="row" style="gap:8px">${P.T?`<span class="tag" style="background:${TCOL[w.t]}">${esc(P.T)}</span>`:'<span class="tag">Mye spill</span>'}
       <span class="hint">${w.p?esc(w.p.name)+(w.n?` · trening ${w.i+1} av ${w.n}`:''):''}</span></div>
     ${P.T?`<div><b>Si til barna:</b> ${esc(TFOCUS[w.t])}</div>`:''}`;
   let t=0; const rows=[];
   rows.push(`<tr><td class="tm">${range(0,P.rig)}</td><td><b>Rigg:</b> Hovedtrener deler barna inn i grupper, mens hjelpetrenerne setter opp stasjonene.</td></tr>`);
   t=P.rig;
-  if(P.onSt){
+  if(P.mode==='felles'){
+    const F=P.felles;
+    rows.push(`<tr><td class="tm">${range(t,t+P.stMin)}</td><td><b>Øvelse 1 – alle samtidig:</b> <a href="#nx-card-0">${esc(F.e1.title)}</a>. Hver gruppe på sitt felt med sin trener.</td></tr>`); t+=P.stMin;
+    rows.push(`<tr><td class="tm">${range(t,t+P.drink)}</td><td><b>Drikkepause</b> <span class="hint">Kjeglene står. Trenerne gjør klar til øvelse 2.</span></td></tr>`); t+=P.drink;
+    rows.push(`<tr><td class="tm">${range(t,t+P.stMin)}</td><td><b>Øvelse 2 – samme kjegler:</b> <a href="#nx-card-1">${esc(F.e2.title)}</a>.</td></tr>`); t+=P.stMin;
+    rows.push(`<tr><td class="tm">${range(t,t+P.drink)}</td><td><b>Drikkepause</b></td></tr>`); t+=P.drink;
+    rows.push(`<tr><td class="tm">${range(t,t+P.gameMin)}</td><td><b>Spill:</b> <a href="#nx-card-game">${esc(P.game.title)}</a><div class="hint">${P.pitches} ${P.pitches===1?'bane':'baner'}, ingen innbyttere: ${esc(gameSummary(P))}. Slå sammen to felt til én bane.</div></td></tr>`); t+=P.gameMin;
+    rows.push(`<tr><td class="tm"></td><td>Samling: «Hva var gøy i dag?»${P.T?` og «${['Hvem fikk spilt ballen fremover?','Hvem scoret eller prøvde å skyte?','Hvem vant ballen?','Hvem stoppet et skudd?'][w.t]}»`:''}</td></tr>`);
+  } else if(P.onSt){
     const nSp=P.picks.filter(e=>e.cat==='Spill').length;
     for(let k=0;k<N;k+=2){ const c=Math.min(2,N-k), len=c*P.stMin+(c-1)*P.change;
       const first=k===0?(P.mode==='kort'?` Samme stasjoner som før – barna kan øvelsene, så hver stasjon er kortere i dag. Bytt til neste nummer når treneren blåser (${N} → 1).`
@@ -1910,7 +1940,15 @@ function render(){
   const drawing=stationsDrawing(P);
   const CP=coachPlan(P);
   const gst=P.mode==='stasjon';
-  const relist=P.picks.map((e,i)=>{const bib=P.sz.real?BIBS[i%BIBS.length]:null;const b=ballsFor(e,P.gs),r=P.fits[i];
+  /* Felles øvelser: den sterkeste gruppa (lavest nivåsnitt) bruker «Vanskeligere», den svakeste «Enklere». */
+  const variant=(()=>{ const G=NX_ENV.groups(); if(!P.felles||!G||G.length<3) return [];
+    const avg=G.map(g=>{const l=g.map(id=>Number((byId(id)||{}).level)).filter(x=>x>0);return l.length?l.reduce((a,b)=>a+b,0)/l.length:2;});
+    const lo=Math.min(...avg), hi=Math.max(...avg); if(hi-lo<0.25) return [];
+    return avg.map(a=>a===lo?'Vanskeligere':a===hi?'Enklere':''); })();
+  const relist=P.felles?P.picks.map((e,i)=>{const bib=P.sz.real?BIBS[i%BIBS.length]:null;
+    return `<div class="nx-st"><span class="nx-num" style="background:${bib?bib.c:'var(--ink)'};color:${bib?bib.t:'var(--surface)'}">${i+1}</span>
+      <div class="nx-t"><b>Felt ${i+1}</b>${CP.any?`<span class="nx-coach">${CP.byStation[i]?'Trener: '+esc(CP.byStation[i]):'<span style="color:#9A5B00">Ingen trener – ta den sammen med feltet ved siden av</span>'}</span>`:''}<span class="hint">${variant[i]?`Bruk <b>«${variant[i]}»</b> fra kortene.`:'Vanlig variant.'}</span>
+      ${bib?`<div class="nx-grp"><div class="nx-gl"><span class="nx-sw" style="background:${bib.c}"></span>${esc(bib.n)} gruppe</div><ul>${(NX_ENV.groups()[i]||[]).map(id=>(byId(id)||{}).name).filter(Boolean).sort((a,b)=>a.localeCompare(b,'nb')).map(n=>`<li>${esc(n)}</li>`).join('')}</ul></div>`:''}</div></div>`;}).join(''):P.picks.map((e,i)=>{const bib=P.sz.real?BIBS[i%BIBS.length]:null;const b=ballsFor(e,P.gs),r=P.fits[i];
     if(gst&&i>=N-2){ const top=i===N-2;
       return `<div class="nx-st"><span class="nx-num" style="background:${bib?bib.c:'var(--ink)'};color:${bib?bib.t:'var(--surface)'}">${i+1}</span>
       <div class="nx-t"><a href="#nx-card-${N-2}"><b>Spillstasjon – ${top?'lag A':'lag B'}</b></a>${CP.any&&CP.byStation[i]?`<span class="nx-coach">Trener: ${esc(CP.byStation[i])}</span>`:''}<span class="hint">5 mot 5 på 30 × 20 m. ${top?`Spiller mot gruppa på nr. ${N}.`:`Spiller mot gruppa på nr. ${N-1}, og går så videre til nr. 1.`}</span>
@@ -1928,12 +1966,12 @@ function render(){
   const figure=(title,svg,extra,id,legend)=>`<article class="scard nx-fig"${id?` id="${id}"`:''}><div class="hd"><div style="display:flex;flex-direction:column;gap:4px"><div class="kick"><span class="stn">Oversikt</span>${P.T?`<span class="tag">${esc(P.T)}</span>`:''}</div><h3>${esc(title)}</h3>
     <div class="meta">${esc(dTxt(w.date,{weekday:'long',day:'numeric',month:'long'}))} · flaten vår, 49,7 × 31,5 m</div></div></div>${svg}${legend}${extra}</article>`;
   const ballLine=`<div class="${over?'note':'hint'}"><b>Baller på stasjonene:</b> ${P.cost} av ${P.balls}.${over?' Det er ikke nok baller. Bytt en stasjon eller øk antall baller i «Årshjul».':''} ${P.mode==='stspill'?'':`Spillet bruker ${P.gameBalls}.`}</div>`;
-  const stationsFig=figure('Stasjonene',drawing,`<div class="nx-list">${relist}</div>${ballLine}
-    ${NX_ENV.canEdit?`<div class="row noprint"><span class="hint">Øvelsene velges automatisk ut fra temaet og ballene, og er de samme hele perioden. Bytter du en øvelse, gjelder det resten av perioden.</span>${anyOv?'<button class="btn small" type="button" id="nxAuto">Tilbake til auto</button>':''}</div>`:''}
+  const stationsFig=figure(P.felles?'Feltene':'Stasjonene',drawing,`<div class="nx-list">${relist}</div>${ballLine}
+    ${NX_ENV.canEdit?`<div class="row noprint"><span class="hint">${P.felles?'Felles øvelser velges automatisk: to øvelser fra temaet som bruker samme kjegler.':'Øvelsene velges automatisk ut fra temaet og ballene, og er de samme hele perioden. Bytter du en øvelse, gjelder det resten av perioden.'}</span>${anyOv&&!P.felles?'<button class="btn small" type="button" id="nxAuto">Tilbake til auto</button>':''}</div>`:''}
     ${CP.head?`<div class="hint"><b>Hovedtrener:</b> ${esc(CP.head)} går rundt mellom alle stasjonene.</div>`:''}${CP.extra.length?`<div class="hint"><b>Ekstra trenere:</b> ${esc(CP.extra.join(', '))}. Hjelp til der det trengs, og ta en bane hver i spillet.</div>`:''}${!CP.any&&NX_ENV.coachList().length?'<div class="hint">Huk av trenerne som er her under «Grupper», så får hver trener sin stasjon.</div>':''}
-    <div class="hint">Bytt med klokka: 1 → 2 → … → ${N} → 1. Kjeglene står hele tiden, bare gruppene flytter.</div>${conePacks(P)}`,'nx-fig-st',stationLegend(P));
-  const gameFig=figure('Spillet etter stasjonene',gameDrawing(P),`<div class="hint">${P.sz.n} spillere, alle spiller hele tiden: ${esc(gameSummary(P))}. ${P.pitchSizes.some(n=>n%2)?'Jokeren spiller med laget som har ballen. Bytt joker hvert 3. minutt. ':''}Bruk kjeglene fra stasjonene.</div>`,'nx-fig-game',gameLegend(P));
-  const cards=P.picks.map((e,i)=>gst&&i===N-1?'':`<div class="cardwrap" id="nx-card-${i}" style="width:100%">${cardHtml(e,{tag:(gst&&i===N-2?`Stasjon ${N-1} og ${N}`:'Stasjon '+(i+1))+(CP.byStation[i]?' · '+CP.byStation[i]:''),minutes:P.stMin})}</div>`).join('')+
+    <div class="hint">${P.felles?'Alle feltene settes opp likt. Gruppene blir på sitt felt hele tiden, også i øvelse 2.':`Bytt med klokka: 1 → 2 → … → ${N} → 1. Kjeglene står hele tiden, bare gruppene flytter.`}</div>${conePacks(P)}`,'nx-fig-st',stationLegend(P));
+  const gameFig=figure(P.felles?'Spillet etter øvelsene':'Spillet etter stasjonene',gameDrawing(P),`<div class="hint">${P.sz.n} spillere, alle spiller hele tiden: ${esc(gameSummary(P))}. ${P.pitchSizes.some(n=>n%2)?'Jokeren spiller med laget som har ballen. Bytt joker hvert 3. minutt. ':''}Bruk kjeglene fra stasjonene.</div>`,'nx-fig-game',gameLegend(P));
+  const cards=P.felles?[[P.felles.e1,'Øvelse 1 · alle felt'],[P.felles.e2,'Øvelse 2 · samme kjegler']].map(([e,tag],i)=>`<div class="cardwrap" id="nx-card-${i}" style="width:100%">${cardHtml(e,{tag,minutes:P.stMin})}</div>`).join('')+`<div class="cardwrap" id="nx-card-game" style="width:100%">${cardHtml(P.game,{tag:'Spill',minutes:P.gameMin})}</div>`:P.picks.map((e,i)=>gst&&i===N-1?'':`<div class="cardwrap" id="nx-card-${i}" style="width:100%">${cardHtml(e,{tag:(gst&&i===N-2?`Stasjon ${N-1} og ${N}`:'Stasjon '+(i+1))+(CP.byStation[i]?' · '+CP.byStation[i]:''),minutes:P.stMin})}</div>`).join('')+
     (P.mode==='stspill'?'':`<div class="cardwrap" id="nx-card-game" style="width:100%">${cardHtml(P.game,{tag:'Spill',minutes:P.gameMin})}</div>`);
   $('sessCards').innerHTML=`<div class="cardwrap" style="width:100%">${stationsFig}</div>`+(P.mode==='stspill'?'':`<div class="cardwrap" style="width:100%">${gameFig}</div>`)+cards;
   document.querySelectorAll('#nxMin button').forEach(b=>b.onclick=()=>{NX_ENV.setMinutes(Number(b.dataset.m));});
