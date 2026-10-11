@@ -160,7 +160,13 @@ body.loading section{display:none!important}
 .scard .say .lbl{font-size:12px;font-weight:700;letter-spacing:.08em;color:#486F38}
 .scard .say div:not(.lbl){font-size:19px;font-weight:700;line-height:1.25}
 .anim-wrap{display:flex;flex-direction:column;gap:6px}
+.anim-stage{position:relative;width:100%;overflow:hidden}
 .anim-svg{display:block;width:100%;height:auto}
+.anim-stage .ad,.anim-stage .ab{position:absolute;border-radius:50%;box-sizing:border-box;will-change:transform;pointer-events:none}
+.anim-stage .ad{width:3.75%;aspect-ratio:1;margin:-1.875% 0 0 -1.875%;background:var(--c);border:1px solid #1b1f1a}
+.anim-stage .ad[data-role="def"]{background:#fff;border:3px solid var(--c)}
+.anim-stage .ab{width:1.9%;aspect-ratio:1;margin:-0.95% 0 0 -0.95%;background:#fff;border:1.5px solid #1b1f1a}
+@supports not (aspect-ratio:1){.anim-stage .ad{height:0;padding-bottom:3.75%}.anim-stage .ab{height:0;padding-bottom:1.9%}}
 .anim-static{display:none}
 .anim-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .anim-play{font:700 14px Barlow,system-ui,sans-serif;border:0;border-radius:8px;padding:8px 14px;background:#486F38;color:#fff;cursor:pointer}
@@ -1306,44 +1312,59 @@ function animStates(A){
     Object.entries(f.pos||{}).forEach(([id,v])=>{n.pos[id]=[v[0],v[1]]; if(v[2]) n.role[id]=v[2];}); out.push(n);});
   return out;
 }
-/* Angriper: fylt sirkel. Forsvarer: hvit med kant. Fargen viser hvilken kø spilleren hører til. */
-const actStyle=(role,col)=>role==='def'?`fill="#fff" stroke="${col||'#1b1f1a'}" stroke-width="3.5"`:`fill="${col||'#1b1f1a'}" stroke="#1b1f1a" stroke-width="1"`;
-const actCol=(A,id)=>{const t=A.actors[id][3];return t&&A.teams?A.teams[t]:null;};
+/* Spillerne og ballene er HTML-elementer oppå en stille SVG-bane. Bevegelsen gjøres av nettleseren selv
+   (Web Animations / CSS-overgang på transform), så den går jevnt også på trege mobiler – koden gjør ingenting mellom bildene. */
+const actCol=(A,id)=>{const t=A.actors[id][3];return t&&A.teams?A.teams[t]:'#1b1f1a';};
+const AW=480, AH=230, pc=(v,d)=>(v/d*100).toFixed(3)+'%';
 function animSvg(e){
   const A=e.anim, s0=animStates(A)[0];
-  let s=`<svg viewBox="0 0 480 230" class="anim-svg" role="img" aria-label="Animasjon av øvelsen ${esc(e.title)}"><rect x="70" y="28" width="340" height="170" fill="#e8efe2" stroke="#2f4a2a" stroke-width="1.5"/>`;
+  let s=`<div class="anim-stage"><svg viewBox="0 0 ${AW} ${AH}" class="anim-svg" role="img" aria-label="Animasjon av øvelsen ${esc(e.title)}"><rect x="70" y="28" width="340" height="170" fill="#e8efe2" stroke="#2f4a2a" stroke-width="1.5"/>`;
   (A.cones||[]).forEach(([x,y])=>s+=`<path d="M${x},${y-7} L${x+6},${y+5} L${x-6},${y+5} z" fill="#e07a2e" stroke="#1b1f1a" stroke-width="1.2"/>`);
   (A.labels||[]).forEach(([x,y,t,tm])=>s+=`<text x="${x}" y="${y}" font-size="12" font-weight="700" text-anchor="middle" fill="${(tm&&A.teams&&A.teams[tm])||'#486F38'}" font-family="Barlow,system-ui,sans-serif">${esc(t)}</text>`);
-  Object.keys(A.actors).forEach(id=>{const [x,y]=s0.pos[id];s+=`<g class="act" data-id="${id}" data-role="${s0.role[id]}" transform="translate(${x} ${y})"><circle r="9" ${actStyle(s0.role[id],actCol(A,id))}/></g>`;});
-  Object.keys(A.balls).forEach(b=>{const [x,y]=s0.pos[s0.balls[b]];s+=`<circle class="ballc" data-b="${b}" cx="${x+11}" cy="${y+6}" r="4.5" fill="#fff" stroke="#1b1f1a" stroke-width="1.5"/>`;});
-  return s+'</svg>';
+  s+='</svg>';
+  Object.keys(A.actors).forEach(id=>{const [x,y]=s0.pos[id];s+=`<span class="ad" data-id="${id}" data-role="${s0.role[id]}" style="--c:${actCol(A,id)};left:${pc(x,AW)};top:${pc(y,AH)}"></span>`;});
+  Object.keys(A.balls).forEach(b=>{const [x,y]=s0.pos[s0.balls[b]];s+=`<span class="ab" data-b="${b}" style="left:${pc(x+11,AW)};top:${pc(y+6,AH)}"></span>`;});
+  return s+'</div>';
 }
 const ANIMRUN=new WeakMap();
-function animApply(svg,A,from,to,k){
-  const ease=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2, L=(a,b)=>a+(b-a)*ease, P={};
-  Object.keys(A.actors).forEach(id=>{const a=from.pos[id],b=to.pos[id];P[id]=[L(a[0],b[0]),L(a[1],b[1])];
-    const g=svg.querySelector(`.act[data-id="${id}"]`); if(!g) return; g.setAttribute('transform',`translate(${P[id][0].toFixed(1)} ${P[id][1].toFixed(1)})`);
-    const role=k<1?from.role[id]:to.role[id]; if(g.dataset.role!==role){g.dataset.role=role;g.innerHTML=`<circle r="9" ${actStyle(role,actCol(A,id))}/>`;}});
-  Object.keys(A.balls).forEach(b=>{const c=svg.querySelector(`.ballc[data-b="${b}"]`); if(!c) return;
-    const pa=from.pos[from.balls[b]], pb=to.pos[to.balls[b]], hold=from.balls[b]===to.balls[b];
-    const x=hold?P[to.balls[b]][0]:L(pa[0],pb[0]), y=hold?P[to.balls[b]][1]:L(pa[1],pb[1]);
-    c.setAttribute('cx',(x+11).toFixed(1)); c.setAttribute('cy',(y+6).toFixed(1));});
+/* Sett alle brikkene rett på en tilstand (uten bevegelse). */
+function animSet(stage,A,st){
+  stage.querySelectorAll('.ad').forEach(el=>{const id=el.dataset.id,[x,y]=st.pos[id];stopEl(el);el.style.left=pc(x,AW);el.style.top=pc(y,AH);el.dataset.role=st.role[id];});
+  stage.querySelectorAll('.ab').forEach(el=>{const [x,y]=st.pos[st.balls[el.dataset.b]];stopEl(el);el.style.left=pc(x+11,AW);el.style.top=pc(y+6,AH);});
+}
+function stopEl(el){ if(el.getAnimations) el.getAnimations().forEach(a=>a.cancel()); el.style.transition='none'; el.style.transform=''; }
+/* Flytt én brikke fra (x0,y0) til (x1,y1) på dur ms. Gir et løfte som holdes når den er fremme. */
+function moveEl(el,x0,y0,x1,y1,dur,sc){
+  const dx=((x1-x0)*sc).toFixed(2), dy=((y1-y0)*sc).toFixed(2);
+  const done=()=>{stopEl(el);el.style.left=pc(x1,AW);el.style.top=pc(y1,AH);};
+  if(dx==='0.00'&&dy==='0.00'){done();return Promise.resolve();}
+  if(el.animate){
+    const an=el.animate([{transform:'translate3d(0,0,0)'},{transform:`translate3d(${dx}px,${dy}px,0)`}],{duration:dur,easing:'ease-in-out',fill:'forwards'});
+    return an.finished.then(done,()=>{});
+  }
+  /* Reserve for eldre telefoner uten Web Animations: CSS-overgang. */
+  return new Promise(res=>{ el.style.transition='none'; el.style.transform='translate3d(0,0,0)'; void el.offsetWidth;
+    el.style.transition=`transform ${dur}ms ease-in-out`; el.style.transform=`translate3d(${dx}px,${dy}px,0)`;
+    setTimeout(()=>{done();res();},dur+30); });
 }
 function animPlay(card,e,startF,endF){
-  const A=e.anim, S=animStates(A), svg=card.querySelector('.anim-svg'); if(!svg) return;
+  const A=e.anim, S=animStates(A), stage=card.querySelector('.anim-stage'); if(!stage) return;
   const run={stop:false}; const old=ANIMRUN.get(card); if(old) old.stop=true; ANIMRUN.set(card,run);
   const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   const btn=card.querySelector('.anim-play'), cap=card.querySelector('.anim-cap');
   const mark=step=>card.querySelectorAll('[data-step]').forEach(d=>d.classList.toggle('on',d.dataset.step===step));
-  animApply(svg,A,S[startF],S[startF],1); if(btn) btn.textContent='❚❚ Stopp';
+  animSet(stage,A,S[startF]); if(btn) btn.textContent='❚❚ Stopp';
   let f=startF;
   const next=()=>{ if(run.stop) return;
     if(f>=endF){ mark(null); if(btn) btn.textContent='↺ Se igjen'; ANIMRUN.delete(card); return; }
     const fr=A.frames[f]; mark(fr.step); if(cap) cap.textContent=fr.cap||'';
-    const dur=reduce?1:fr.t, t0=performance.now(), a=S[f], b=S[f+1];
-    const tick=now=>{ if(run.stop) return; const k=Math.min(1,(now-t0)/dur); animApply(svg,A,a,b,k);
-      if(k<1) requestAnimationFrame(tick); else { f++; setTimeout(next,reduce?900:450); } };
-    requestAnimationFrame(tick); };
+    const a=S[f], b=S[f+1], dur=reduce?1:fr.t, sc=stage.clientWidth/AW, jobs=[];
+    stage.querySelectorAll('.ad').forEach(el=>{const id=el.dataset.id;jobs.push(moveEl(el,a.pos[id][0],a.pos[id][1],b.pos[id][0],b.pos[id][1],dur,sc));});
+    stage.querySelectorAll('.ab').forEach(el=>{const k=el.dataset.b,p0=a.pos[a.balls[k]],p1=b.pos[b.balls[k]];jobs.push(moveEl(el,p0[0]+11,p0[1]+6,p1[0]+11,p1[1]+6,dur,sc));});
+    Promise.all(jobs).then(()=>{ if(run.stop) return;
+      stage.querySelectorAll('.ad').forEach(el=>{el.dataset.role=b.role[el.dataset.id];});
+      f++; setTimeout(next,reduce?900:450); });
+  };
   next();
 }
 document.addEventListener('click',ev=>{
@@ -1351,7 +1372,7 @@ document.addEventListener('click',ev=>{
   const e=exAny(card.dataset.ex); if(!e||!e.anim) return;
   const n=e.anim.frames.length;
   if(ev.target.closest('.anim-play')){ const r=ANIMRUN.get(card);
-    if(r){ r.stop=true; ANIMRUN.delete(card); ev.target.closest('.anim-play').textContent='▶ Fortsett fra start'; card.querySelectorAll('[data-step]').forEach(d=>d.classList.remove('on')); return; }
+    if(r){ r.stop=true; ANIMRUN.delete(card); const stg=card.querySelector('.anim-stage'); if(stg) animSet(stg,e.anim,animStates(e.anim)[0]); card.querySelector('.anim-cap').textContent=''; ev.target.closest('.anim-play').textContent='▶ Vis øvelsen'; card.querySelectorAll('[data-step]').forEach(d=>d.classList.remove('on')); return; }
     animPlay(card,e,0,n); return; }
   const st=ev.target.closest('[data-step]'); if(!st) return;
   const step=st.dataset.step, first=e.anim.frames.findIndex(f=>f.step===step); if(first<0) return;
