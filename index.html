@@ -191,7 +191,29 @@ body.loading section{display:none!important}
 .plan{width:100%;border-collapse:collapse;font-size:15px}
 .plan td{padding:8px 6px;border-top:1px solid var(--line);vertical-align:top}
 .plan tr:first-child td{border-top:0}
-.plan td.tm{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--muted);font-weight:600;width:1%}
+.plan td.tm{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--muted);font-weight:600;width:1%;font-size:13px;padding-top:11px}
+.plan td{padding:10px 6px}
+.plan td.tx .pt{display:block;font-size:16px;margin-bottom:2px}
+.plan td.tx .hint{display:block}
+.plan td.du{width:1%;white-space:nowrap;text-align:right;padding-top:9px}
+.dur{display:inline-block;min-width:58px;text-align:center;padding:3px 10px;border-radius:999px;font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;border:1px solid transparent}
+.dur-st{background:#DDEDE3;color:#17542F;border-color:#9CC9AE}
+.dur-spill{background:#FBE6D3;color:#8A3F0B;border-color:#EDB98C}
+.dur-pause{background:#E2EEF9;color:#1F4E7A;border-color:#A9C8E6}
+.dur-rigg{background:#ECEFEA;color:#3E4A42;border-color:#C9D1C6}
+.plan tr.pr-pause td{padding-top:6px;padding-bottom:6px}
+.plan tr.pr-pause td.tx .pt{display:inline;font-size:15px;margin-right:6px}
+.plan tr.pr-pause td.tx .hint{display:inline}
+.plan tr.pr-pause td.tm{padding-top:7px}.plan tr.pr-pause td.du{padding-top:5px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .dur-st{background:#1D3527;color:#9FE0BC;border-color:#2F5A41}
+:root:not([data-theme="light"]) .dur-spill{background:#3A2412;color:#F5B985;border-color:#6A4022}
+:root:not([data-theme="light"]) .dur-pause{background:#14273A;color:#9CC7EE;border-color:#2A4A6A}
+:root:not([data-theme="light"]) .dur-rigg{background:#232C26;color:#C4CEC6;border-color:#3A463E}}
+:root[data-theme="dark"] .dur-st{background:#1D3527;color:#9FE0BC;border-color:#2F5A41}
+:root[data-theme="dark"] .dur-spill{background:#3A2412;color:#F5B985;border-color:#6A4022}
+:root[data-theme="dark"] .dur-pause{background:#14273A;color:#9CC7EE;border-color:#2A4A6A}
+:root[data-theme="dark"] .dur-rigg{background:#232C26;color:#C4CEC6;border-color:#3A463E}
+@media (max-width:420px){.plan td{padding-left:4px;padding-right:4px}.dur{min-width:50px;padding:3px 7px;font-size:13px}}
 .plan a{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
 .ex-item.pick{cursor:pointer;border-radius:8px}
 .ex-item.pick:hover{background:var(--surface-2)}
@@ -1222,11 +1244,11 @@ const LEG={
   ball:['<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="#fff" stroke="#1b1f1a" stroke-width="1.5"/></svg>','Ball'],
   wall:['<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill="#F2C230" stroke="#1b1f1a" stroke-width="1.2"/></svg>','Vegg (spiller for laget med ball)'],
   joker:['<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill="#F2C230" stroke="#1b1f1a" stroke-width="1.2"/></svg>','Joker / keeper'],
-  coach:['<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="2" fill="#F2C230" stroke="#1b1f1a" stroke-width="1.2"/></svg>','Trener'],
+  coach:['<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="2" fill="#1b1f1a"/><text x="7" y="10.5" font-size="9" font-weight="700" text-anchor="middle" fill="#fff" font-family="Barlow,sans-serif">T</text></svg>','Trener'],
   ballline:['<svg width="26" height="10" viewBox="0 0 26 10" aria-hidden="true"><line x1="1" y1="5" x2="25" y2="5" stroke="#1b1f1a" stroke-width="2.5"/></svg>','Ballen'],
   run:['<svg width="26" height="10" viewBox="0 0 26 10" aria-hidden="true"><line x1="1" y1="5" x2="25" y2="5" stroke="#1b1f1a" stroke-width="2" stroke-dasharray="5 4"/></svg>','Løp uten ball']};
 /* FARGEREGEL FOR ALLE KORT, UANSETT TEMA: blå = angriper / eget lag, rød = forsvarer / motlag,
-   gul = joker, keeper eller vegg. Gjelder tegning, forklaring, animasjon (rød «F») og utskrift.
+   gul = joker, keeper eller vegg. Trener = svart firkant med hvit T. Gjelder tegning, forklaring, animasjon (rød «F») og utskrift.
    Kontrolleres av sjekk-farger.py før hver ny versjon.
    Tegningene er laget i svart/hvitt; fargene byttes når kortet vises. */
 const GAME_BLUE='#2F6FD0', GAME_RED='#C23B2E', GAME_YEL='#F2C230';
@@ -1234,6 +1256,8 @@ function gameColors(svg){
   return String(svg||'')
     .replace(/(<circle[^>]*\sr="(?:7|8|9|10)"[^>]*?)fill="#1b1f1a"/g,`$1fill="${GAME_BLUE}" stroke="#1b1f1a" stroke-width="1"`)
     .replace(/(<circle[^>]*\sr="(?:7|8|9|10)"[^>]*?)fill="#fff" stroke="#1b1f1a" stroke-width="3"/g,`$1fill="${GAME_RED}" stroke="#1b1f1a" stroke-width="1"`)
+    .replace(/(<rect[^>]*?)fill="#F2C230"([^>]*>)(<text[^>]*?)fill="#1b1f1a"/g,'$1fill="#1b1f1a"$2$3fill="#fff"')
+    .replace(/(<rect[^>]*?)fill="#F2C230"/g,'$1fill="#1b1f1a"')
     .replace(/#9AA39A/gi,GAME_YEL);
 }
 const dotIco=(f,sw)=>`<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill="${f}" stroke="#1b1f1a" stroke-width="${sw||1}"/></svg>`;
@@ -2027,7 +2051,16 @@ function conePacks(P){
 function gameSummary(P){const c={};P.pitchSizes.forEach(n=>{const t=P.gameFmt(n);c[t]=(c[t]||0)+1;});return Object.entries(c).map(([t,k])=>`${k} ${k===1?'bane':'baner'} med ${t}`).join(', ');}
 /* ---------- visning ---------- */
 /* Fra–til i minutter, og varigheten på egen linje under. */
-const range=(a,b)=>`${a}–${b} min<span style="display:block;color:var(--ink);font-weight:700">${b-a} min</span>`;
+const range=(a,b)=>`${a}–${b}<i data-d="${b-a}" hidden></i>`;
+/* Hver rad: fra–til (dempet) | tittel på egen linje + tekst | varighet i et farget merke.
+   Farge etter type: rigg grå, stasjoner/øvelser grønn, spill oransje, drikkepause blå. */
+function planRow(r){
+  const m=r.match(/^<tr><td class="tm">([\s\S]*?)<\/td><td>([\s\S]*)<\/td><\/tr>$/); if(!m) return r;
+  const d=(m[1].match(/data-d="(\d+)"/)||[])[1], tm=m[1].replace(/<i[^>]*><\/i>/,'');
+  let tx=m[2].replace(/^<b>([^<]*?):?<\/b>\s*/,(x,t)=>`<b class="pt">${t}</b>`);
+  const k=/^<b class="pt">Drikkepause/.test(tx)?'pause':/^<b class="pt">Rigg/.test(tx)?'rigg':/^<b class="pt">Spill/.test(tx)?'spill':/^<b class="pt">(Stasjoner|Øvelse)/.test(tx)?'st':'end';
+  return `<tr class="pr-${k}"><td class="tm">${tm}</td><td class="tx">${tx}</td><td class="du">${d?`<span class="dur dur-${k}">${d} min</span>`:''}</td></tr>`;
+}
 function render(){
   const P=plan(), N=P.picks.length, w=P.w;
   const head=`<div class="row spread"><div><div class="label">${w.date===todayStr()?'Dagens økt':'Neste trening'}</div>
@@ -2092,7 +2125,7 @@ function render(){
       ${bib?`<div class="nx-grp"><div class="nx-gl"><span class="nx-sw" style="background:${bib.c}"></span>Starter her: ${esc(bib.n)} gruppe</div><ul>${(NX_ENV.groups()[i]||[]).map(id=>(byId(id)||{}).name).filter(Boolean).sort((a,b)=>a.localeCompare(b,'nb')).map(n=>`<li>${esc(n)}</li>`).join('')}</ul></div>`:''}
       ${NX_ENV.canEdit?`<select data-i="${i}" aria-label="Øvelse på stasjon ${i+1}">${optionsFor(e,P)}</select>`:''}</div></div>`;}).join('');
   const anyOv=P.picks.some((e,i)=>!P.auto(i));
-  $('sessPanel').innerHTML=head+`<table class="plan"><tbody>${rows.join('')}</tbody></table>`+
+  $('sessPanel').innerHTML=head+`<table class="plan"><tbody>${rows.map(planRow).join('')}</tbody></table>`+
     (P.sz.real?'':`<div class="note">Gruppene er ikke laget ennå. Planen regner med ${P.sz.n} spillere i ${N} grupper. Lag gruppene under «Grupper», så ser du hvilken farge som starter på hvilken stasjon.</div>`)+
     (P.sz.real&&(NX_ENV.groups()||[]).some(g=>g.length<3)?`<div class="note">Noen grupper har under 3 spillere til stede i dag (${(NX_ENV.groups()||[]).map((g,k)=>g.length<3?BIBS[k%BIBS.length].n+': '+g.length:'').filter(Boolean).join(', ')}). Flytt noen dit under «Grupper».</div>`:'')+
     (P.mode!=='stspill'&&P.gameMin<12?`<div class="note">Med ${N} stasjoner på ${P.total} minutter blir det bare ${P.gameMin} minutter spill. Velg 75 min, eller lag færre grupper.</div>`:'')+
