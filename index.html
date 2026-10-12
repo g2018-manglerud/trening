@@ -2646,6 +2646,77 @@ $('createYes').onclick=()=>{ const c=pendingCreate; pendingCreate=null; $('creat
 $('createNo').onclick=()=>{ pendingCreate=null; $('createBox').classList.add('hidden'); };
 
 })();
+/* ===== HVA ER NYTT (start) =====
+   Endringslisten i appen. WN_LOG lages av lag-endringslogg.py fra utviklingsloggen ved hver ny versjon:
+   nye ting som korte linjer, feil samlet under «Retting av feil». Nyeste versjon først.
+   Etter en oppdatering vises et banner én gang per telefon; knappen «Nytt» ligger alltid øverst. */
+(function(){
+/*WN_LOG_START*/const WN_LOG=[{"v": "v86", "date": "", "nytt": ["Begge 2 mot 1-øvelsene går i én kø, med fast rekkefølge for hvem som blir forsvarer.", "Treningsformatet velges automatisk: de to første treningene i et tema har spill på stasjonene, deretter kortere stasjoner og spill (75 min) eller felles øvelser (60 min).", "Drikkepause etter hver andre stasjon.", "Kjeglepakker: appen lager pakkelisten selv og viser den ved hver stasjon på kartet.", "Ryddigere tidsplan: rigg på 10 minutter, og hvor lenge hver del varer står i et farget merke til høyre.", "Felles øvelser: «2 mot 1 – Waves» kan kjøres sammen med «Før ballen over linja».", "«Vis øvelsen»: stasjonskortene i «Spille oss fremover» viser øvelsen som en animasjon.", "Samme farger på alle kort: blå angriper, rød forsvarer, gul joker/keeper/vegg og svart trener."], "feil": 5}, {"v": "", "date": "2026-10-06", "nytt": ["Importer et tidligere lagoppsett, så appen unngår å sette de samme spillerne sammen igjen."], "feil": 0}, {"v": "", "date": "2026-10-05", "nytt": ["Oppmøtet gjelder neste trening og nullstilles dagen etter, også for trenerne.", "Trenerne beholder stasjonen sin gjennom hele temaperioden."], "feil": 0}, {"v": "", "date": "2026-10-04", "nytt": ["1-ere står alltid foran 1½ – både når gruppene lages og når noen er borte.", "Flest spillere på de største banene.", "«Spill på stasjonene», flaten målt til 49,7 × 31,5 m, og tre nye øvelser for «Spille oss fremover».", "En øvelse du bytter, blir stående på samme stasjonsnummer.", "Samme øvelse kan ikke lenger havne på to stasjoner etter flere bytter."], "feil": 0}, {"v": "", "date": "2026-10-03", "nytt": ["Faste grupper med hele stallen, utjevning når noen er borte, og valg av trenere.", "Delen for administrator på hjelpesiden vises bare når administratoren er logget inn.", "Knapp for å forkorte etternavn. Innliming fra Spond kjenner fortsatt igjen fullt navn.", "Smartere utjevning: spillere flyttes via gruppene imellom, så hver havner nærmere sitt eget nivå."], "feil": 0}, {"v": "", "date": "2026-10-02", "nytt": ["Første versjon av appen på GitHub Pages, med Firebase, så alle trenerne ser det samme uten konto.", "Én trener har ansvaret for å lage gruppene hver trening («Jeg lager gruppene i dag»).", "Brukerinstruksjonen «Slik bruker du appen» og en hjelp-knapp øverst til høyre.", "Ny tidsplan: 5 min rigg, stasjoner på minst 6 min, drikkepause, spill og samling uten minutter."], "feil": 0}];/*WN_LOG_END*/
+if(!WN_LOG.length) return;
+const KEY='g2018-sett-versjon';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dT=d=>{try{return new Date(d+'T12:00:00').toLocaleDateString('nb-NO',{day:'numeric',month:'long',year:'numeric'});}catch(e){return d;}};
+const get=()=>{try{return localStorage.getItem(KEY);}catch(e){return null;}};
+const set=v=>{try{localStorage.setItem(KEY,v);}catch(e){}};
+const latest=WN_LOG[0].v;
+const css=`.wn-btn{display:inline-flex;align-items:center;gap:6px;font:600 14px var(--body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px 5px 10px;cursor:pointer;position:relative}
+.wn-btn:hover{border-color:var(--muted)}
+.wn-btn .wn-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);display:none}
+.wn-btn.unseen .wn-dot{display:inline-block}
+.wn-banner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--accent-soft);border-radius:10px;padding:10px 12px;margin:0 0 12px;font-size:15px}
+.wn-banner b{flex:1 1 200px}
+.wn-banner button{font:600 14px var(--body);border-radius:8px;padding:7px 12px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink)}
+.wn-banner button.wn-x{background:transparent;color:var(--ink);border-color:transparent;padding:7px 8px}
+.wn-sheet{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;justify-content:center;padding:0 12px}
+.wn-sheet[hidden]{display:none!important}
+@media (min-width:600px){.wn-sheet{align-items:center}}
+.wn-box{background:var(--surface);color:var(--ink);width:100%;max-width:520px;max-height:85vh;overflow:auto;border-radius:14px 14px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px))}
+@media (min-width:600px){.wn-box{border-radius:14px}}
+.wn-box h2{font-family:var(--display);font-size:26px;margin:0 0 4px}
+.wn-ver{border-top:1px solid var(--line);padding:12px 0}
+.wn-ver:first-of-type{border-top:0}
+.wn-ver h3{font:700 15px var(--body);margin:0 0 6px;display:flex;gap:8px;align-items:center}
+.wn-new{font:700 11px var(--body);letter-spacing:.06em;text-transform:uppercase;background:var(--accent);color:var(--accent-ink);border-radius:4px;padding:2px 6px}
+.wn-ver ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px}
+.wn-ver li.wn-fix{color:var(--muted)}
+.wn-close{margin-top:10px;width:100%;font:600 16px var(--body);border-radius:9px;padding:12px;cursor:pointer;border:1px solid var(--line);background:var(--surface-2);color:var(--ink)}
+@media print{.wn-btn,.wn-banner,.wn-sheet{display:none!important}}`;
+function list(){
+  return WN_LOG.map((r,i)=>`<section class="wn-ver"><h3>${r.date?esc(dT(r.date)):'Nyeste versjon'}${i===0&&get()!==latest?'<span class="wn-new">Ny</span>':''}</h3><ul>${
+    (r.nytt||[]).map(t=>`<li>${esc(t)}</li>`).join('')}${r.feil?`<li class="wn-fix">Retting av feil${r.feil>1?` (${r.feil} stk.)`:''}</li>`:''}</ul></section>`).join('');
+}
+function init(){
+  const top=document.querySelector('.wrap .top'); if(!top||document.getElementById('wnBtn')) return;
+  const st=document.createElement('style'); st.textContent=css; document.head.appendChild(st);
+  const btn=document.createElement('button'); btn.type='button'; btn.id='wnBtn'; btn.className='wn-btn';
+  btn.innerHTML='<span class="wn-dot" aria-hidden="true"></span>Hva er nytt'; btn.setAttribute('aria-haspopup','dialog');
+  const right=top.querySelector('.topright'); if(right) right.insertBefore(btn,right.firstChild);
+  else { const w=document.createElement('div'); w.style.cssText='display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0'; const s=top.querySelector(':scope > .status'); if(s) w.appendChild(s); w.insertBefore(btn,w.firstChild); top.appendChild(w); }
+  const sheet=document.createElement('div'); sheet.className='wn-sheet'; sheet.hidden=true; sheet.setAttribute('role','dialog'); sheet.setAttribute('aria-modal','true'); sheet.setAttribute('aria-labelledby','wnTitle');
+  sheet.innerHTML='<div class="wn-box"><h2 id="wnTitle">Hva er nytt i appen</h2><div id="wnList"></div><button type="button" class="wn-close" id="wnClose">Lukk</button></div>';
+  document.body.appendChild(sheet);
+  let banner=null;
+  const seen=()=>{ set(latest); btn.classList.remove('unseen'); if(banner){banner.remove();banner=null;} };
+  const open=()=>{ document.getElementById('wnList').innerHTML=list(); sheet.hidden=false; seen(); const bx=sheet.querySelector('.wn-box'); bx.scrollTop=0; document.getElementById('wnClose').focus({preventScroll:true}); bx.scrollTop=0; };
+  const close=()=>{ sheet.hidden=true; btn.focus(); };
+  btn.onclick=open; document.getElementById('wnClose').onclick=close;
+  sheet.addEventListener('click',e=>{ if(e.target===sheet) close(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!sheet.hidden) close(); });
+  const prev=get();
+  if(prev!==latest){
+    btn.classList.add('unseen');
+    {
+      banner=document.createElement('div'); banner.className='wn-banner'; banner.setAttribute('role','status');
+      banner.innerHTML='<b>Appen er oppdatert.</b><button type="button" id="wnSee">Se hva som er nytt</button><button type="button" class="wn-x" id="wnHide" aria-label="Skjul">✕</button>';
+      top.insertAdjacentElement('afterend',banner);
+      document.getElementById('wnSee').onclick=open; document.getElementById('wnHide').onclick=seen;
+    }
+  }
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
+/* ===== HVA ER NYTT (slutt) ===== */
+
 </script>
 
 </body></html>
