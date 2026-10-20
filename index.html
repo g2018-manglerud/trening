@@ -2049,7 +2049,7 @@ function fellesViews(P){
   const F=P.felles, N=P.picks.length, D=fellesDiff(F), t1=P.rig, t2=P.rig+P.stMin+P.drink;
   const views=[0,1].map(k=>{ const e=k?F.e2:F.e1, svg=stationsDrawing(P,k), r=P.fits[0], mark=k===1&&layoutOf(F.e1)!==layoutOf(F.e2)&&['ends','endone'].includes(layoutOf(F.e2));
     const size=`${Math.round(r.w)} × ${Math.round(r.h)} m`;
-    const note=k?`<b>Samme felt som i øvelse 1.</b> ${esc(D.long)}${layoutOf(F.e1)===layoutOf(F.e2)?'':' '+esc(fieldTxt(e))}`
+    const note=k?`<b>Samme felt som i øvelse 1.</b> ${esc(D.long)}${layoutOf(F.e1)===layoutOf(F.e2)?' '+esc(fieldTxt(e)):''}`
       :`<b>Sett opp ${N} like felt, ${size}.</b> Hver gruppe er på sitt felt hele treningen, også i øvelse 2. ${esc(fieldTxt(e))}`;
     return `<div class="nx-fview" data-v="${k}"${k!==fView?' hidden':''}>
       <div class="nx-fhd"><span class="nx-fno">${k+1}</span><div><b>Øvelse ${k+1}: <a class="nx-flink" href="#nx-card-${k}">${esc(e.title)}</a></b><span class="hint">${k?t2:t1}–${(k?t2:t1)+P.stMin} min · ${esc(e.cat)}</span></div></div>
