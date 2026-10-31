@@ -597,6 +597,10 @@ body.locked #status{display:none}
 
   <!-- INNSTILLINGER -->
   <section id="view-oppsett" class="hidden" style="flex-direction:column;gap:18px">
+    <div class="panel" id="venuePanel"><h2>Baner</h2>
+      <div class="hint">Størrelsen på hele banen. Halv og kvart bane regnes ut av seg selv. Kartet og stasjonskortene i «Dagens økt» bruker banen dere er på.</div>
+      <div id="venueSizes" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div id="venueDefaults" style="display:flex;flex-direction:column;gap:8px"></div></div>
     <div class="panel">
       <h2>Grupper</h2>
       <div class="row spread"><span>Antall grupper (øvelser)</span><div class="seg" id="groupCount"></div></div>
@@ -637,6 +641,7 @@ body.locked #status{display:none}
     <button type="button" class="btn" id="pActMove">Flytt eller bytt spiller</button>
     <button type="button" class="linkbtn" id="pActCancel">Avbryt</button></div></div>
   <div id="callView" class="callv hidden" role="dialog" aria-modal="true" aria-labelledby="callTitle"><div class="callv-in" id="callIn"></div></div>
+  <div id="resetSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="resetQ"><div class="sheet-box"><div class="sheet-name" id="resetQ">Er du sikker på at du vil nullstille gruppene?</div><div class="hint">Dagens grupper og «kom sent» fjernes. Oppmøtet blir stående. Etterpå trykker du «Ferdig – del inn i grupper» igjen.</div><button type="button" class="btn danger" id="resetYes">Ja, nullstill gruppene</button><button type="button" class="linkbtn" id="resetNo">Avbryt</button></div></div>
   <div id="lateSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="lateCol"><div class="sheet-box late-box"><div class="late-col" id="lateCol"></div><button type="button" class="btn primary" id="lateOk">OK</button></div></div>
   <div id="selBar" class="stick hidden"><span id="selText"></span><button id="selCancel">Avbryt</button></div>
 </div>
@@ -673,8 +678,8 @@ let dirty=false, writing=false, saveTimer=null, changeNo=0;
 
 /* To dokumenter: team/main (spillere, nivåer, lag, innstillinger – bare eieren skriver)
    og session/current (oppmøte, grupper, historikk – eieren og trenere med Bidragsyter-tilgang skriver). */
-const sessPart=()=>({present:S.present||{},presentDay:S.presentDay||null,groups:S.groups||null,groupLevels:S.groupLevels||null,history:S.history||[],coachPresent:S.coachPresent||{},coachHomes:S.coachHomes||null,lead:S.lead||null,lock:S.lock||null});
-const mainPart=()=>{const o=Object.assign({},S);delete o.present;delete o.groups;delete o.history;delete o.coachPresent;delete o.coachHomes;delete o.lead;delete o.presentDay;delete o.groupLevels;delete o.lock;return o;};
+const sessPart=()=>({present:S.present||{},presentDay:S.presentDay||null,groups:S.groups||null,groupLevels:S.groupLevels||null,history:S.history||[],coachPresent:S.coachPresent||{},coachHomes:S.coachHomes||null,lead:S.lead||null,lock:S.lock||null,venue:S.venue||null});
+const mainPart=()=>{const o=Object.assign({},S);delete o.present;delete o.groups;delete o.history;delete o.coachPresent;delete o.coachHomes;delete o.lead;delete o.presentDay;delete o.groupLevels;delete o.lock;delete o.venue;return o;};
 function save(){
   syncCurrent();
   if(MODE==='local'){ saveLocal(); return; }
@@ -697,7 +702,7 @@ async function flushShared(){
   }
   writing=false;
 }
-function applySess(d){ S.lock=d.lock||null; S.groupLevels=d.groupLevels||null; S.presentDay=d.presentDay||null; S.lead=d.lead||null; S.coachPresent=d.coachPresent||{}; S.coachHomes=d.coachHomes||null; S.present=d.present||{}; S.groups=d.groups||null; S.history=Array.isArray(d.history)?d.history:[]; }
+function applySess(d){ S.lock=d.lock||null; S.venue=d.venue||null; S.groupLevels=d.groupLevels||null; S.presentDay=d.presentDay||null; S.lead=d.lead||null; S.coachPresent=d.coachPresent||{}; S.coachHomes=d.coachHomes||null; S.present=d.present||{}; S.groups=d.groups||null; S.history=Array.isArray(d.history)?d.history:[]; }
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const byId=id=>S.players.find(p=>p.id===id);
@@ -807,11 +812,11 @@ function renderAvail(box,map,after,ED){
 let gMode='att', actId=null;
 function openAct(id){ actId=id; $('pActName').textContent=byId(id).name; $('pAct').classList.remove('hidden'); $('pActAway').focus(); }
 function closeAct(){ actId=null; $('pAct').classList.add('hidden'); }
-/* Oppmøtet gjelder neste trening (onsdag). Det som hukes av mellom treningene, blir stående til da.
+/* Oppmøtet gjelder neste trening (onsdag, fra 5. nov 2026 torsdag). Det som hukes av mellom treningene, blir stående til da.
    Dagen etter treningen regnes alle spillerne som til stede igjen, og trenerne nullstilles.
    presentDay = datoen for treningen oppmøtet gjelder. */
-function lastWedBefore(td){ const d=new Date(td+'T12:00:00'); d.setDate(d.getDate()-(((d.getDay()-3+7)%7)||7)); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
-const isWedStr=s=>new Date(String(s).slice(0,10)+'T12:00:00').getDay()===3;
+function lastWedBefore(td){ const d=new Date(td+'T12:00:00'); for(let i=0;i<8;i++){ d.setDate(d.getDate()-1); if(d.getDay()===dowFor(ymd(d))) return ymd(d); } return ymd(d); }
+const isWedStr=s=>new Date(String(s).slice(0,10)+'T12:00:00').getDay()===dowFor(s);
 function dailyReset(){
   if(MODE==='loading'||!CANS||!S.groups) return;
   const td=todayStr(), nw=nextWed();
@@ -880,7 +885,9 @@ function renderRoll(){
       const r=document.createElement('button'); r.type='button'; r.className='btn small'; r.style.marginTop='6px';
       r.textContent=confirmKey==='redo'?'Bekreft: del inn på nytt':'Del inn på nytt';
       r.onclick=()=>{ if(confirmKey!=='redo'){ confirmKey='redo'; renderRoll(); return; } confirmKey=null; S.lock=null; lockNow(); save(); render(); openCall(0); };
-      u.appendChild(document.createElement('br')); u.appendChild(r); d.appendChild(u); } }
+      u.appendChild(document.createElement('br')); u.appendChild(r); d.appendChild(u); }
+    { const z=document.createElement('button'); z.type='button'; z.className='linkbtn'; z.id='rollReset'; z.textContent='Nullstill gruppene'; z.style.alignSelf='flex-start'; z.style.marginTop='14px';
+      z.onclick=()=>{ $('resetSheet').classList.remove('hidden'); $('resetNo').focus(); }; d.appendChild(z); } }
 }
 let callIx=0, callData=null, callKind='g';
 function openCall(start,kind){
@@ -1406,6 +1413,28 @@ function renderSettings(){
     $('shortNames').classList.toggle('hidden',!n);
     $('shortNames').textContent=confirmKey==='short'?`Bekreft: forkort ${n} navn`:'Forkort etternavn'; }
   levelSeg($('newLevel'),newLevel,l=>{newLevel=l;renderSettings();},S.settings.levels);
+  renderVenueSettings();
+}
+function renderVenueSettings(){
+  const box=$('venueSizes'); if(!box) return; box.innerHTML='';
+  const set=S.settings.venueSizes||{};
+  Object.keys(VENUES).forEach(p=>{ const [L,B]=venueHel(p), own=Array.isArray(set[p]);
+    const r=document.createElement('div');
+    r.innerHTML=`<div class="row spread" style="gap:8px;flex-wrap:wrap"><b>${esc(VENUES[p])}</b><span class="row" style="gap:6px;align-items:center">
+      <input type="number" inputmode="decimal" step="0.1" min="5" max="130" value="${L}" aria-label="Lengde ${esc(VENUES[p])}" data-vl="${p}" style="width:84px"> ×
+      <input type="number" inputmode="decimal" step="0.1" min="5" max="90" value="${B}" aria-label="Bredde ${esc(VENUES[p])}" data-vb="${p}" style="width:84px"> m</span></div>
+      <div class="hint">Halv: ${mfmt(venueSize(p,'halv')[0])} × ${mfmt(venueSize(p,'halv')[1])} m · Kvart: ${mfmt(venueSize(p,'kvart')[0])} × ${mfmt(venueSize(p,'kvart')[1])} m${own?'':p==='k11'?' · målt (kvart bane)':' · <b>ikke målt</b> – legg inn riktig størrelse'}</div>`;
+    box.appendChild(r); });
+  box.querySelectorAll('input').forEach(i=>i.onchange=()=>{ const p=i.dataset.vl||i.dataset.vb, cur=venueHel(p).slice(), v=parseFloat(String(i.value).replace(',','.'));
+    if(!(v>=5&&v<=130)){ renderVenueSettings(); return; } if(i.dataset.vl) cur[0]=v; else cur[1]=v;
+    S.settings.venueSizes=Object.assign({},S.settings.venueSizes||{},{[p]:cur}); save(); render(); });
+  const d=$('venueDefaults'), def=S.settings.venueDefault||{st:{place:'hall',part:'kvart'},sp:{place:'hall',part:'halv'}};
+  const opt=(o,cur)=>Object.entries(o).map(([k,t])=>`<option value="${k}" ${k===cur?'selected':''}>${esc(t)}</option>`).join('');
+  d.innerHTML=[['st','Standard for øvelsene'],['sp','Standard for spillet']].map(([k,t])=>`<div class="row spread" style="gap:8px;flex-wrap:wrap"><span>${t}</span><span class="row" style="gap:6px">
+    <select data-dp="${k}">${opt(VENUES,def[k].place)}</select><select data-dq="${k}">${opt(PARTS,def[k].part)}</select></span></div>`).join('')
+    +'<div class="hint">Gjelder hver trening til den som lager gruppene velger noe annet i «Dagens økt» (gjelder da bare den treningen).</div>';
+  d.querySelectorAll('select').forEach(x=>x.onchange=()=>{ const k=x.dataset.dp||x.dataset.dq, n=JSON.parse(JSON.stringify(def));
+    if(x.dataset.dp) n[k].place=x.value; else n[k].part=x.value; S.settings.venueDefault=n; save(); render(); });
 }
 function render(){
   if(MODE==='shared') CANS=CAN||leadIsMe();
@@ -1506,9 +1535,14 @@ const WHEEL=[
   {id:'p27-8',name:'Periode 8',year:2027,w:[47,50],t:3}];
 const pad2=n=>String(n).padStart(2,'0');
 /* Onsdag i en ISO-uke, som 'ÅÅÅÅ-MM-DD'. */
-function isoWed(y,w){ const j4=new Date(Date.UTC(y,0,4)); const dow=(j4.getUTCDay()+6)%7; const d=new Date(Date.UTC(y,0,4-dow+(w-1)*7+2)); return d.toISOString().slice(0,10); }
+/* Treningsdag: onsdag, fra 5. nov 2026 torsdag (hallen, 16.30–17.30). */
+const DAY_FROM=[['2026-11-02',4]];
+const dowFor=s=>{ let d=3; for(const [f,w] of DAY_FROM) if(String(s).slice(0,10)>=f) d=w; return d; };
+const ymd=d=>`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+function isoWed(y,w){ const j4=new Date(Date.UTC(y,0,4)); const dow=(j4.getUTCDay()+6)%7; const mon=new Date(Date.UTC(y,0,4-dow+(w-1)*7));
+  const k=dowFor(mon.toISOString().slice(0,10)); const d=new Date(Date.UTC(y,0,4-dow+(w-1)*7+(k-1))); return d.toISOString().slice(0,10); }
 function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
-function nextWed(){ const d=new Date(); const add=(3-d.getDay()+7)%7; d.setDate(d.getDate()+add); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+function nextWed(){ const d=new Date(); for(let i=0;i<8;i++){ const s=ymd(d); if(d.getDay()===dowFor(s)) return s; d.setDate(d.getDate()+1); } return ymd(d); }   /* neste treningsdag */
 const dText=(s,o)=>new Date(s+'T12:00:00').toLocaleDateString('nb-NO',o||{day:'numeric',month:'short'});
 const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
 const periodTheme=p=>{ const o=S.wheel&&S.wheel.themes&&S.wheel.themes[p.id]; return p.t===null?null:(Number.isInteger(o)?o:p.t); };
@@ -1669,7 +1703,7 @@ function renderWheel(){
     const t=periodTheme(now.p);
     h+=`<div class="label">${now.kind==='before'?'Årshjulet starter':'Pause'}</div><div class="wh-date">${esc(cap(dText(now.date,{weekday:'long',day:'numeric',month:'long'})))}</div>`;
     h+=`<div class="wh-theme"><span class="wh-sw" style="background:${TCOL[t]}"></span>${esc(TFULL[t])}</div>`;
-    if(now.kind==='before') h+=`<div class="hint">Treningen onsdag ${esc(dText(now.trainDate,{day:'numeric',month:'long'}))} er før første periode. Dere fortsetter med temaet dere har nå.</div>`;
+    if(now.kind==='before') h+=`<div class="hint">Treningen ${esc(dText(now.trainDate,{weekday:'long',day:'numeric',month:'long'}))} er før første periode. Dere fortsetter med temaet dere har nå.</div>`;
   } else h+=`<div class="label">Årshjulet</div><div class="wh-date">Planen går til desember 2027</div>`;
   // stripe over alle perioder
   const cur=now.p?now.p.id:null;
@@ -1767,7 +1801,9 @@ $('whReset').onclick=()=>{ if(S.wheel) S.wheel.themes={}; save(); render(); };
    Forventer på siden: EXERCISES, NEW_EX, WHEEL, THEMES, TFULL, TFOCUS, TCOL, isoWed, nextWed, periodDates,
    groupCountFor, BIBS, esc, $, cardHtml og et NX_ENV-objekt (se hver side). */
 const NX=(()=>{
-const FW=49.7, FH=31.5, U=10;              /* banen i meter, 10 enheter per meter i tegningen */
+let FW=49.7, FH=31.5, U=10, FKEY='k11kvart';   /* banen i meter; tegningen er alltid ca. 497 enheter bred (U enheter per meter) */
+function useField(f){ if(!f) return; FW=f.w; FH=f.h; U=497/FW; FKEY=f.place+f.part; }
+const fieldLabel=f=>f?`${f.name}, ${f.pname.toLowerCase()} bane (${NX_ENV.mfmt(f.w)} × ${NX_ENV.mfmt(f.h)} m)`:'';
 const DEF_BALLS=15;
 const ALL=()=>EXERCISES.concat(NEW_EX);
 const exA=id=>ALL().find(e=>e.id===id);
@@ -1809,6 +1845,7 @@ function sizing(){
    Varierer fra uke til uke, holder seg innenfor antall baller og blander kategoriene. */
 function plan(){
   const w=when(), sz=sizing(), set=NX_ENV.settings();
+  const VEN=NX_ENV.venue(w.date); useField(VEN.st);
   let balls=Number.isInteger(set.balls)?set.balls:DEF_BALLS;
   const gs=Math.max(...sz.sizes);
   const T=w.t===null||w.t===undefined?null:THEMES[w.t];
@@ -2000,7 +2037,7 @@ function plan(){
   const pitches=mode==='fire'?Math.max(1,Math.min(6,Math.ceil(sz.n/9))):Math.max(1,Math.min(4,Math.ceil(sz.n/10)));  /* Maks 5 mot 5 og så store baner som mulig (Alexander, 20. okt): så få baner som mulig med maks 10 per bane. Over 40: innbyttere. */
   const pb=Math.floor(sz.n/pitches), pr=sz.n%pitches;
   const pitchSizes=Array.from({length:pitches},(_,i)=>pb+(i<pr?1:0));
-  return {goals,w,key,sz,picks,picksFull,fullIdx,NF,auto:i=>!manual.has(i),flip,balls,gs,cost:felles?N*Math.max(ballsFor(felles.e1,gs),ballsFor(felles.e2,gs)):cost(),T,game:mode==='fire'?smallGame(game):bigGame(game),mode,onSt,felles,fmtAuto,autoFmt,testMode,breaks,change,gameFmt:(gf=>n=>n>10&&mode!=='fire'?`${gf(10)} + ${n-10} ${n-10===1?'innbytter':'innbyttere'}`:gf(n))(mode==='fire'||(SMALL[game.id]||{}).layout==='four'?fmtGame:fmtGameK),total,stMin,stTotal,gameMin,pitches,pitchSizes,end,rig,drink,
+  return {fieldSt:VEN.st,fieldSp:VEN.sp,goals,w,key,sz,picks,picksFull,fullIdx,NF,auto:i=>!manual.has(i),flip,balls,gs,cost:felles?N*Math.max(ballsFor(felles.e1,gs),ballsFor(felles.e2,gs)):cost(),T,game:mode==='fire'?smallGame(game):bigGame(game),mode,onSt,felles,fmtAuto,autoFmt,testMode,breaks,change,gameFmt:(gf=>n=>n>10&&mode!=='fire'?`${gf(10)} + ${n-10} ${n-10===1?'innbytter':'innbyttere'}`:gf(n))(mode==='fire'||(SMALL[game.id]||{}).layout==='four'?fmtGame:fmtGameK),total,stMin,stTotal,gameMin,pitches,pitchSizes,end,rig,drink,
     gameBalls:pitches*(Number(game.bpg)||2)};
 }
 
@@ -2123,7 +2160,7 @@ const ACTIVE={'w40-slalom':2,'w40-1mot1':2,'w40-hjornemal':2,'w40-2mot1':3,'w40-
 function spaceNeed(e){ if(!e) return 0; const m=String(e.area||'').match(/(\d+)\s*[×x]\s*(\d+)/); const a=m?(+m[1])*(+m[2]):300;
   const act=ACTIVE[e.id]!=null?ACTIVE[e.id]:6; return a*(0.5+Math.min(act,7)/12); }
 /* Feltene i hver rad får bredde etter plassbehovet (mellom 70 % og 140 % av snittet). */
-function layoutCells(gst,N,flip){ return gst?cellsIn(0,0,FW-23,FH,N-2,flip).concat([null,null]).slice(0,N):cells(N,flip); }
+function layoutCells(gst,N,flip){ return gst?cellsIn(0,0,FW-Math.min(20,FW*0.4)-3,FH,N-2,flip).concat([null,null]).slice(0,N):cells(N,flip); }
 function sizeCells(cs,picks){
   const rows={}; cs.forEach((c,i)=>{(rows[c.y.toFixed(2)]=rows[c.y.toFixed(2)]||[]).push(i);});
   Object.values(rows).forEach(ix=>{ if(ix.length<2) return; ix.sort((a,b)=>cs[a].x-cs[b].x);
@@ -2191,19 +2228,23 @@ function fieldBase(){
   for(let i=0;i<7;i++) s+=`<rect x="${i*FW*U/7}" y="0" width="${FW*U/7}" height="${FH*U}" fill="${i%2?'#3E8A4C':'#45944F'}"/>`;
   const ln='stroke="#fff" stroke-width="2" fill="none"', fl='stroke="rgba(255,255,255,.55)" stroke-width="1.6" fill="none"';
   s+=`<rect x="0" y="0" width="${FW*U}" height="${FH*U}" ${ln}/>`;
-  /* Merker fra 11er-banen: halve straffefeltet, halve målfeltet, straffemerket, hjørnebuen og en fjerdedel av midtsirkelen. */
+  /* Merker fra 11er-banen (bare kvart 11'er): halve straffefeltet, halve målfeltet, straffemerket, hjørnebuen og en fjerdedel av midtsirkelen. */
+  if(FKEY!=='k11kvart') return s;
   s+=`<path d="M0,${(FH-20.16)*U} H${16.5*U} V${FH*U}" ${fl}/><path d="M0,${(FH-9.16)*U} H${5.5*U} V${FH*U}" ${fl}/>`;
   s+=`<circle cx="${11*U}" cy="${FH*U}" r="2.5" fill="rgba(255,255,255,.7)"/><path d="M${U},0 A${U} ${U} 0 0 1 0,${U}" ${fl}/>`;
   s+=`<path d="M${(FW-9.15)*U},${FH*U} A${9.15*U} ${9.15*U} 0 0 1 ${FW*U},${(FH-9.15)*U}" ${fl}/>`;
   s+=`<rect x="-6" y="${(FH-3.66)*U}" width="6" height="${3.66*U}" fill="#fff"/>`;
   return s;
 }
-const edgeLabels=()=>`<g font-family="Barlow,system-ui,sans-serif" font-size="13" font-weight="600" fill="#4a5148">
-  <text x="${FW*U/2}" y="-10" text-anchor="middle">Sidelinjen · 49,7 m</text>
+const edgeLabels=()=>FKEY==='k11kvart'?`<g font-family="Barlow,system-ui,sans-serif" font-size="13" font-weight="600" fill="#4a5148">
+  <text x="${FW*U/2}" y="-10" text-anchor="middle">Sidelinjen · ${NX_ENV.mfmt(FW)} m</text>
   <text x="${FW*U/2}" y="${FH*U+20}" text-anchor="middle">Midt på banen (på langs)</text>
-  <text transform="translate(-16 ${FH*U/2}) rotate(-90)" text-anchor="middle">Mållinjen · 31,5 m</text>
-  <text transform="translate(${FW*U+18} ${FH*U/2}) rotate(90)" text-anchor="middle">Midtlinjen</text></g>`;
-const wrapSvg=(inner,label)=>`<svg viewBox="-30 -28 585 398" role="img" aria-label="${esc(label)}" style="display:block;width:100%;height:auto">${inner}</svg>`;
+  <text transform="translate(-16 ${FH*U/2}) rotate(-90)" text-anchor="middle">Mållinjen · ${NX_ENV.mfmt(FH)} m</text>
+  <text transform="translate(${FW*U+18} ${FH*U/2}) rotate(90)" text-anchor="middle">Midtlinjen</text></g>`
+  :`<g font-family="Barlow,system-ui,sans-serif" font-size="13" font-weight="600" fill="#4a5148">
+  <text x="${FW*U/2}" y="-10" text-anchor="middle">Langside · ${NX_ENV.mfmt(FW)} m</text>
+  <text transform="translate(-16 ${FH*U/2}) rotate(-90)" text-anchor="middle">Kortside · ${NX_ENV.mfmt(FH)} m</text></g>`;
+const wrapSvg=(inner,label)=>`<svg viewBox="-30 -28 ${Math.round(FW*U+88)} ${Math.round(FH*U+83)}" role="img" aria-label="${esc(label)}" style="display:block;width:100%;height:auto">${inner}</svg>`;
 function badge(cx,cy,num,bib,sub){
   const fill=bib?bib.c:'#17211B', txt=bib?bib.t:'#fff';
   return `<g><circle cx="${cx}" cy="${cy}" r="17" fill="${fill}" stroke="#17211B" stroke-width="2"/>
@@ -2223,12 +2264,22 @@ function nameBox(r,ids,bib){
     t+=`<text x="${X+6+c*W/cols}" y="${Y+5+f+rr*lh}" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="700" font-size="${f.toFixed(1)}" fill="#17211B">${esc(n)}</text>`;});
   return t;
 }
+/* Bane for øvelsene og for spillet (velges av administrator og den som lager gruppene). */
+function venueRow(P){
+  const ed=NX_ENV.canSess&&!P.w.preview, E=NX_ENV;
+  const one=(k,t,f)=>ed?`<div class="row nx-ven noprint" style="gap:6px;flex-wrap:wrap;align-items:center"><span class="hint"><b>${t}:</b></span>
+      <select data-vp="${k}" aria-label="${t}: sted">${Object.entries(E.VENUES).map(([v,n])=>`<option value="${v}" ${v===f.place?'selected':''}>${esc(n)}</option>`).join('')}</select>
+      <div class="seg" role="group" aria-label="${t}: del av banen">${Object.entries(E.PARTS).map(([v,n])=>`<button type="button" data-vk="${k}" data-v="${v}" aria-pressed="${v===f.part}">${n}</button>`).join('')}</div>
+      <span class="hint">${E.mfmt(f.w)} × ${E.mfmt(f.h)} m</span></div>`
+    :`<div class="hint"><b>${t}:</b> ${esc(fieldLabel(f))}</div>`;
+  return one('st','Bane – øvelser',P.fieldSt)+(P.mode==='stspill'?'':one('sp','Bane – spill',P.fieldSp));
+}
 function stationsDrawing(P,view){
-  const N=P.picks.length, gst=P.mode==='stasjon';
-  const GR={x:FW-21,y:(FH-30)/2,w:20,h:30};          /* 5er-banen, på høykant til høyre */
+  useField(P.fieldSt); const N=P.picks.length, gst=P.mode==='stasjon';
+  const grW=Math.min(20,FW*0.4), grH=Math.min(30,FH-1), GR={x:FW-grW-1,y:(FH-grH)/2,w:grW,h:grH};          /* 5er-banen, på høykant til høyre */
   /* Felles øvelser: view 0 = øvelse 1, view 1 = øvelse 2. Alle feltene får samme størrelse (det minste feltet). */
   const F=P.felles&&view!=null?P.felles:null, EX=F?new Array(N).fill(view?F.e2:F.e1):P.picks, mark=!!(F&&view===1&&layoutOf(F.e1)!==layoutOf(F.e2));
-  const cs=sizeCells(gst?cellsIn(0,0,FW-23,FH,N-2,P.flip):cells(N,P.flip),EX); let s=fieldBase();
+  const cs=sizeCells(gst?cellsIn(0,0,FW-grW-3,FH,N-2,P.flip):cells(N,P.flip),EX); let s=fieldBase();
   let fits=EX.map((e,i)=>gst&&i>=N-2?Object.assign({shrunk:false},GR):fit(F?F.setup:e,cs[i]));
   if(F){ const w=Math.min(...fits.map(f=>f.w)), h=Math.min(...fits.map(f=>f.h));
     fits=fits.map((f,i)=>({w,h,shrunk:f.shrunk||w<f.w-0.01||h<f.h-0.01,x:cs[i].x+(cs[i].w-w)/2,y:cs[i].y+(cs[i].h-h)/2})); }
@@ -2240,7 +2291,7 @@ function stationsDrawing(P,view){
     [[X,Y],[X+W,Y],[X,Y+H],[X+W,Y+H]].forEach(([x,y])=>s+=bigCone(x,y,'#F07C2A'));
     s+=goal5(X+W/2,Y,false,-1)+goal5(X+W/2,Y+H,false,1);
     s+=`<text x="${X+W/2}" y="${Y+H/2-8}" text-anchor="middle" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="700" font-size="20" fill="#fff" stroke="#1f3d26" stroke-width="3" paint-order="stroke">Spillstasjon</text>`;
-    s+=`<text x="${X+W/2}" y="${Y+H/2+28}" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="12.5" fill="#fff" stroke="#1f3d26" stroke-width="3" paint-order="stroke">5 mot 5 · 30 × 20 m</text>`; }
+    s+=`<text x="${X+W/2}" y="${Y+H/2+28}" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="12.5" fill="#fff" stroke="#1f3d26" stroke-width="3" paint-order="stroke">5 mot 5 · ${Math.round(grH)} × ${Math.round(grW)} m</text>`; }
   EX.forEach((e,i)=>{const r=fits[i];const bib=P.sz.real?BIBS[i%BIBS.length]:null;
     if(gst&&i>=N-2){ const top=i===N-2; s+=badge(r.x*U+22,top?r.y*U+30:(r.y+r.h)*U-30,i+1,bib,top?'Lag A':'Lag B'); return; }
     const BP=findSpot(r,(obs[i]||[]).filter(b=>b[2]-b[0]<14||b[0]>r.x*U+14||b[1]>r.y*U+14).concat(baseBlocks(r,e).slice(0,1)),36,36,r.x*U+4,r.y*U+4)||[r.x*U+4,r.y*U+4];
@@ -2289,7 +2340,7 @@ function fellesViews(P){
   /* 3: spillet etter øvelsene, på samme sted i kartet. */
   const tg=t2+P.stMin+P.drink;
   views.push(`<div class="nx-fview" data-v="2"${fView!==2?' hidden':''}>
-      <div class="nx-fhd"><span class="nx-fno">3</span><div><b>Spill: <a class="nx-flink" href="#nx-card-game">${esc(P.game.title)}</a></b><span class="hint">${tg}–${tg+P.gameMin} min · ${P.pitches} ${P.pitches===1?'bane':'baner'}</span></div></div>
+      <div class="nx-fhd"><span class="nx-fno">3</span><div><b>Spill: <a class="nx-flink" href="#nx-card-game">${esc(P.game.title)}</a></b><span class="hint">${tg}–${tg+P.gameMin} min · ${P.pitches} ${P.pitches===1?'bane':'baner'} · ${esc(fieldLabel(P.fieldSp))}</span></div></div>
       ${gameDrawing(P)}${gameLegend(P)}<div class="hint"><b>${P.pitches} ${P.pitches===1?'bane':'baner'}, maks 5 mot 5.</b> ${P.sz.n} spillere: ${esc(gameSummary(P))}. Bruk kjeglene fra feltene.</div>${gameTeams(P)||(P.sz.real?'':'<div class="hint">Lag gruppene under «Grupper», så kommer lagene på hver bane her.</div>')}
       <div class="row noprint"><button type="button" class="btn small nx-fnext" data-fgo="1">← Øvelse 2</button></div></div>`);
   const lab=['Øvelse 1','Øvelse 2','Spill'];
@@ -2325,8 +2376,8 @@ function gameTeams(P){
   return `<div class="nx-teams"><button type="button" class="btn primary nx-tcall noprint" style="width:100%;padding:13px">Vis lagene</button><div class="hint"><b>Lagene er laget automatisk:</b> jevne lag på hver bane. Dere trenger ${vests} vester i én farge (lag 1).</div>${html}</div>`;
 }
 function gameDrawing(P){
-  const k=P.pitches, big=P.mode!=='fire'; let s=fieldBase();
-  const cs=k===1?(big?[{x:(FW-33)/2,y:(FH-22)/2,w:33,h:22}]:[{x:(FW-26)/2,y:(FH-20)/2,w:26,h:20}]):cells(k);
+  useField(P.fieldSp||P.fieldSt); const k=P.pitches, big=P.mode!=='fire'; let s=fieldBase();
+  const cs=k===1?[{x:0,y:0,w:FW,h:FH}]:cells(k);
   const L=P.game.layoutSmall||(P.game.goal==='kjegle'?'ends':'bigboth');
   /* Flest spillere på de største banene. */
   const bySize=cs.map((c,i)=>i).sort((x,y)=>cs[y].w*cs[y].h-cs[x].w*cs[x].h||x-y);
@@ -2459,6 +2510,7 @@ function render(){
     ${NX_ENV.canEdit&&NX_ENV.modeTest?`<div class="row noprint" style="gap:8px"><span class="hint"><b>Spilloppsett:</b></span><div class="seg" id="nxMode" role="group" aria-label="Spilloppsett">${[['fire','4 små baner – Test'],['lange','Lange baner – Test'],['stasjon','Spillstasjon – Test'],['stspill','Vanlig (format under) – Publisert']].map(([v,t])=>`<button type="button" data-v="${v}" aria-pressed="${v==='stspill'?!P.testMode:P.mode===v}">${t}</button>`).join('')}</div></div>`:''}
     ${NX_ENV.canEdit&&NX_ENV.setFormat&&!P.testMode?`<div class="row noprint" style="gap:8px"><span class="hint"><b>${esc(NX_ENV.fmtLabel||'Format')}:</b></span><div class="seg" id="nxFmt" role="group" aria-label="Format">${[['auto','Automatisk'],['stspill','Spill på stasjonene'],['kort','Stasjoner, så spill'],['felles','Felles øvelser']].map(([v,t])=>`<button type="button" data-v="${v}" aria-pressed="${v==='auto'?P.fmtAuto:!P.fmtAuto&&P.mode===v}">${t}</button>`).join('')}</div>
       <span class="hint">${P.fmtAuto?`Automatisk: ${w.n?`trening ${w.i+1} i perioden gir `:''}«${{kort:'Stasjoner, så spill',felles:'Felles øvelser'}[P.autoFmt]||'Spill på stasjonene'}». Trening 1–2 har spill på stasjonene. Fra trening 3: på 75 min stasjoner og så spill, på 60 min to felles øvelser og så spill.${P.autoFmt==='felles'&&P.mode!=='felles'?' Temaet har ikke to øvelser med samme kjegler, så det blir stasjoner og spill.':''}`:'Valgt manuelt for denne treningen.'}</span></div>`:''}
+    ${venueRow(P)}
     <div class="row" style="gap:8px">${P.T?`<span class="tag" style="background:${TCOL[w.t]}">${esc(P.T)}</span>`:'<span class="tag">Mye spill</span>'}
       <span class="hint">${w.p?esc(w.p.name)+(w.n?` · trening ${w.i+1} av ${w.n}`:''):''}</span></div>
     ${P.T?`<div><b>Si til barna:</b> ${esc(TFOCUS[w.t])}</div>`:''}`;
@@ -2520,8 +2572,8 @@ function render(){
     (P.sz.real&&(NX_ENV.groups()||[]).some(g=>g.length<3)?`<div class="note">Noen grupper har under 3 spillere til stede i dag (${(NX_ENV.groups()||[]).map((g,k)=>g.length<3?BIBS[k%BIBS.length].n+': '+g.length:'').filter(Boolean).join(', ')}). Flytt noen dit under «Grupper».</div>`:'')+
     (P.mode!=='stspill'&&P.gameMin<12?`<div class="note">Med ${N} stasjoner på ${P.total} minutter blir det bare ${P.gameMin} minutter spill. Velg 75 min, eller lag færre grupper.</div>`:'')+
     (N<4?`<div class="hint">Med få spillere blir det bare ${N} ${N===1?'gruppe':'grupper'}, og derfor ${N} ${N===1?'stasjon':'stasjoner'}.</div>`:'');
-  const figure=(title,svg,extra,id,legend)=>`<article class="scard nx-fig"${id?` id="${id}"`:''}><div class="hd"><div style="display:flex;flex-direction:column;gap:4px"><div class="kick"><span class="stn">Oversikt</span>${P.T?`<span class="tag">${esc(P.T)}</span>`:''}</div><h3>${esc(title)}</h3>
-    <div class="meta">${esc(dTxt(w.date,{weekday:'long',day:'numeric',month:'long'}))} · flaten vår, 49,7 × 31,5 m</div></div></div>${svg}${legend}${extra}</article>`;
+  const figure=(title,svg,extra,id,legend,fld)=>`<article class="scard nx-fig"${id?` id="${id}"`:''}><div class="hd"><div style="display:flex;flex-direction:column;gap:4px"><div class="kick"><span class="stn">Oversikt</span>${P.T?`<span class="tag">${esc(P.T)}</span>`:''}</div><h3>${esc(title)}</h3>
+    <div class="meta">${esc(dTxt(w.date,{weekday:'long',day:'numeric',month:'long'}))} · ${esc(fieldLabel(fld||P.fieldSt))}</div></div></div>${svg}${legend}${extra}</article>`;
   const ballLine=`<div class="${over?'note':'hint'}"><b>Baller på stasjonene:</b> ${P.cost} av ${P.balls}.${over?' Det er ikke nok baller. Bytt en stasjon eller øk antall baller i «Årshjul».':''} ${P.mode==='stspill'?'':`Spillet bruker ${P.gameBalls}.`}</div>`;
   const fOpt=(list,cur)=>list.map(e=>`<option value="${e.id}" ${e===cur?'selected':''}>${esc(e.title)}${e.theme!==P.T?' ('+esc(e.theme)+')':''}</option>`).join('');
   const fMenu=P.felles&&NX_ENV.canEdit&&NX_ENV.setFelles?`<div class="row noprint" style="gap:8px;align-items:flex-end">
@@ -2531,7 +2583,7 @@ function render(){
     ${NX_ENV.canEdit?`<div class="row noprint"><span class="hint">${P.felles?(P.felles.manual?'Felles øvelser er valgt manuelt for denne perioden.':'Felles øvelser velges automatisk: to øvelser fra temaet som bruker samme kjegler.'):'Øvelsene velges automatisk ut fra temaet og ballene, og er de samme hele perioden. Bytter du en øvelse, gjelder det resten av perioden.'}</span>${P.felles&&P.felles.manual?'<button class="btn small" type="button" id="nxFAuto">Tilbake til auto</button>':''}${anyOv&&!P.felles?'<button class="btn small" type="button" id="nxAuto">Tilbake til auto</button>':''}</div>`:''}
     ${CP.head?`<div class="hint"><b>Hovedtrener:</b> ${esc(CP.head)} går rundt mellom alle stasjonene.</div>`:''}${CP.any&&!P.felles?`<div class="hint">Hver trener har fast øvelse i hele perioden, også når det kommer færre barn.${NX_ENV.canSess?' Velg «Bytt trener …» på en stasjon for å bytte. <button type="button" class="linkbtn noprint" id="nxCAuto">Fordel trenere automatisk</button>':''}</div>`:''}${CP.extra.length?`<div class="hint"><b>Ekstra trenere:</b> ${esc(CP.extra.join(', '))}. Hjelp til der det trengs. I spillet står de på banene.</div>`:''}${!CP.any&&NX_ENV.coachList().length?'<div class="hint">Huk av trenerne som er her under «Grupper», så får hver trener sin stasjon.</div>':''}
     <div class="hint">${P.felles?'Alle feltene settes opp likt. Gruppene blir på sitt felt hele tiden, også i øvelse 2.':`Bytt med klokka: 1 → 2 → … → ${N} → 1. Kjeglene står hele tiden, bare gruppene flytter.`}</div>${conePacks(P)}`,'nx-fig-st',P.felles?'':stationLegend(P));
-  const gameFig=figure(P.felles?'Spillet etter øvelsene':'Spillet etter stasjonene',gameDrawing(P),`<div class="hint">${P.sz.n} spillere, maks 5 mot 5: ${esc(gameSummary(P))}. Bruk kjeglene fra stasjonene.</div>${gameTeams(P)||(P.sz.real?'':'<div class="hint">Lag gruppene under «Grupper», så kommer lagene på hver bane her.</div>')}`,'nx-fig-game',gameLegend(P));
+  const gameFig=figure(P.felles?'Spillet etter øvelsene':'Spillet etter stasjonene',gameDrawing(P),`<div class="hint">${P.sz.n} spillere, maks 5 mot 5: ${esc(gameSummary(P))}. Bruk kjeglene fra stasjonene.</div>${gameTeams(P)||(P.sz.real?'':'<div class="hint">Lag gruppene under «Grupper», så kommer lagene på hver bane her.</div>')}`,'nx-fig-game',gameLegend(P),P.fieldSp);
   /* Størrelsen på kortene = størrelsen på kartet i dag */
   const areaOf=i=>{const f=(P.fits||[])[i]; return f?`${Math.round(f.w)} × ${Math.round(f.h)} m`:undefined;};
   const gameArea=P.pitchWH&&P.pitchWH.length?[...new Set(P.pitchWH)].join(' / ')+' m':undefined;
@@ -2539,6 +2591,8 @@ function render(){
     (P.mode==='stspill'?'':`<div class="cardwrap" id="nx-card-game" style="width:100%">${cardHtml(P.game,{tag:'Spill',minutes:P.gameMin,area:gameArea})}</div>`);
   $('sessCards').innerHTML=`<div class="cardwrap" style="width:100%">${stationsFig}</div>`+(P.mode==='stspill'||P.felles?'':`<div class="cardwrap" style="width:100%">${gameFig}</div>`)+cards;
   if($('nxCall')) $('nxCall').onclick=()=>NX_ENV.openCall();
+  { const Pv=plan(); document.querySelectorAll('#sessPanel [data-vp]').forEach(x=>x.onchange=()=>{ const k=x.dataset.vp, f=k==='st'?Pv.fieldSt:Pv.fieldSp; NX_ENV.setVenue(k,{place:x.value,part:f.part},Pv.w.date); });
+    document.querySelectorAll('#sessPanel [data-vk]').forEach(b=>b.onclick=()=>{ const k=b.dataset.vk, f=k==='st'?Pv.fieldSt:Pv.fieldSp; NX_ENV.setVenue(k,{place:f.place,part:b.dataset.v},Pv.w.date); }); }
   document.querySelectorAll('#sessCards .nx-tcall').forEach(b=>b.onclick=()=>NX_ENV.openCall('l'));
   document.querySelectorAll('#nxMin button').forEach(b=>b.onclick=()=>{ if(PREV){ PREVMIN=Number(b.dataset.m); NX_ENV.rerender(); return; } NX_ENV.setMinutes(Number(b.dataset.m));});
   document.querySelectorAll('#sessPanel [data-pd]').forEach(b=>b.onclick=()=>{PREV=b.dataset.pd; fView=0; NX_ENV.rerender();});
@@ -2595,7 +2649,7 @@ function groupCall(){
   return G.map((ids,k)=>{ const r=(P.fits||[])[k], bib=BIBS[k%BIBS.length];
     let hl='';
     if(r){ const X=r.x*U,Y=r.y*U,W=r.w*U,H=r.h*U;
-      hl=`<path d="M-30,-28 h585 v398 h-585 z M${X-6},${Y-6} v${H+12} h${W+12} v${-H-12} z" fill="rgba(255,255,255,.62)" fill-rule="evenodd"/>`+
+      hl=`<path d="M-30,-28 h${FW*U+88} v${FH*U+83} h${-(FW*U+88)} z M${X-6},${Y-6} v${H+12} h${W+12} v${-H-12} z" fill="rgba(255,255,255,.62)" fill-rule="evenodd"/>`+
          `<rect x="${X-6}" y="${Y-6}" width="${W+12}" height="${H+12}" rx="6" fill="none" stroke="#fff" stroke-width="9"/>`+
          `<rect x="${X-6}" y="${Y-6}" width="${W+12}" height="${H+12}" rx="6" fill="none" stroke="${bib.c}" stroke-width="5"/>`; }
     const gst=P.mode==='stasjon'&&k>=P.picks.length-2;
@@ -2610,7 +2664,7 @@ function teamCall(){
   const svg=gameDrawing(P); gameTeams(P); if(!P._teams||!P._teams.length) return null;
   return P._teams.map((tm,pi)=>{ const r=P.pitchRects[pi]; let hl='';
     if(r){ const X=r.x*U,Y=r.y*U,W=r.w*U,H=r.h*U;
-      hl=`<path d="M-30,-28 h585 v398 h-585 z M${X-8},${Y-8} v${H+16} h${W+16} v${-H-16} z" fill="rgba(255,255,255,.62)" fill-rule="evenodd"/>`+
+      hl=`<path d="M-30,-28 h${FW*U+88} v${FH*U+83} h${-(FW*U+88)} z M${X-8},${Y-8} v${H+16} h${W+16} v${-H-16} z" fill="rgba(255,255,255,.62)" fill-rule="evenodd"/>`+
          `<rect x="${X-8}" y="${Y-8}" width="${W+16}" height="${H+16}" rx="6" fill="none" stroke="#fff" stroke-width="9"/>`+
          `<rect x="${X-8}" y="${Y-8}" width="${W+16}" height="${H+16}" rx="6" fill="none" stroke="#1F6B46" stroke-width="5"/>`; }
     return {pi,letter:'ABCD'[pi],fmt:P.gameFmt(tm.n),coach:tm.coach,t:tm.t,bench:tm.bench,nm:P._nm,svg:svg.replace(/<\/svg>$/,hl+'</svg>')}; });
@@ -2619,7 +2673,25 @@ function whereOf(k){ const P=plan(); const CP=P._cp||(P._cp=coachPlan(P)); retur
 return {render,plan,whereOf,groupCall,teamCall,DEF_BALLS,printDoc,renderCoaches,preview:d=>{PREV=d||null;PREVMIN=null;fView=0;},get previewing(){return !!PREV;}};
 })();
 
+/* ---------- Baner (v92) ---------- */
+const VENUES={hall:'Manglerud Fotballhall',k11:"Manglerud Kunstgress 11'er",k7:"Manglerud Kunstgress 7'er"};
+const PARTS={hel:'Hel',halv:'Halv',kvart:'Kvart'};
+const VDEF_SIZE={hall:[99.4,63],k11:[99.4,63],k7:[60,40]};          /* hel bane; kvart 11'er = 49,7 × 31,5 (målt 4. okt) */
+const venueHel=p=>{ const v=(S.settings.venueSizes||{})[p]; return Array.isArray(v)&&v[0]>0&&v[1]>0?v:VDEF_SIZE[p]; };
+function venueSize(place,part){ const [L,B]=venueHel(place);
+  const a=part==='kvart'?[L/2,B/2]:part==='halv'?[B,L/2]:[L,B]; return [Math.max(...a),Math.min(...a)]; }
+const mfmt=n=>String(Math.round(n*10)/10).replace('.',',');
+function venueFor(date){
+  const def=date&&date<'2026-11-05'?{st:{place:'k11',part:'kvart'},sp:{place:'k11',part:'kvart'}}
+    :(S.settings.venueDefault||{st:{place:'hall',part:'kvart'},sp:{place:'hall',part:'halv'}});
+  const day=S.venue&&S.venue.day===date?S.venue:{};
+  const mk=k=>{ const v=Object.assign({},def[k],day[k]||{}); if(!VENUES[v.place]) v.place='hall'; if(!PARTS[v.part]) v.part='kvart';
+    const [w,h]=venueSize(v.place,v.part); return Object.assign(v,{w,h,name:VENUES[v.place],pname:PARTS[v.part]}); };
+  return {st:mk('st'),sp:mk('sp')};
+}
 const NX_ENV={
+  VENUES,PARTS,venue:venueFor,mfmt,
+  setVenue:(k,v,date)=>{ if(!CANS) return; if(!S.venue||S.venue.day!==date) S.venue={day:date}; S.venue[k]=v; save(); render(); },
   openCall:k=>openCall(0,k),
   grpLis:i=>{ const L=lockOn(), late=new Set((L&&L.late)||[]);
     return (NX_ENV.groups()[i]||[]).map(id=>({id,n:(byId(id)||{}).name})).filter(x=>x.n).sort((a,b)=>a.n.localeCompare(b.n,'nb'))
@@ -2831,6 +2903,9 @@ $('pActAway').onclick=()=>{ if(actId){ delete S.present[actId]; } closeAct(); sa
 $('pActMove').onclick=()=>{ if(actId){ sel=actId; selCtx='g'; } closeAct(); rerender(); };
 $('pActCancel').onclick=closeAct;
 $('lateOk').onclick=()=>$('lateSheet').classList.add('hidden');
+$('resetNo').onclick=()=>$('resetSheet').classList.add('hidden');
+$('resetSheet').onclick=e=>{ if(e.target===$('resetSheet')) $('resetSheet').classList.add('hidden'); };
+$('resetYes').onclick=()=>{ $('resetSheet').classList.add('hidden'); S.lock=null; confirmKey=null; sel=null; save(); render(); flash('Gruppene er nullstilt. Oppmøtet står. Trykk «Ferdig – del inn i grupper» når du er klar.'); };
 $('lateSheet').onclick=e=>{ if(e.target===$('lateSheet')) $('lateSheet').classList.add('hidden'); };
 $('pAct').onclick=e=>{ if(e.target===$('pAct')) closeAct(); };
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&actId) closeAct(); if(e.key==='Escape'&&!$('callView').classList.contains('hidden')) closeCall(false); });
@@ -3042,7 +3117,7 @@ function startShared(owner){
     if(CAN && (dirty || writing || snap.metadata.hasPendingWrites)) { startSession(); return; }
     const cur=JSON.parse(JSON.stringify(data)); delete cur.updatedAt;
     if(!validState(cur)) { startSession(); return; }
-    cur.groupLevels=S.groupLevels||null; cur.presentDay=S.presentDay||null; cur.lead=S.lead||null; cur.coachPresent=S.coachPresent||{}; cur.coachHomes=S.coachHomes||null; cur.present=S.present||{}; cur.groups=S.groups||null; cur.history=Array.isArray(S.history)?S.history:[];
+    cur.lock=S.lock||null; cur.venue=S.venue||null; cur.groupLevels=S.groupLevels||null; cur.presentDay=S.presentDay||null; cur.lead=S.lead||null; cur.coachPresent=S.coachPresent||{}; cur.coachHomes=S.coachHomes||null; cur.present=S.present||{}; cur.groups=S.groups||null; cur.history=Array.isArray(S.history)?S.history:[];
     S=cur; lastM=JSON.stringify(mainPart()); if(CAN) saveLocal(); render(); startSession();
   },lostConn);
   render();
@@ -3081,7 +3156,7 @@ $('createNo').onclick=()=>{ pendingCreate=null; $('createBox').classList.add('hi
    nye ting som korte linjer, feil samlet under «Retting av feil». Nyeste versjon først.
    Etter en oppdatering vises et banner én gang per telefon; knappen «Nytt» ligger alltid øverst. */
 (function(){
-/*WN_LOG_START*/const WN_LOG=[{"v": "v91", "date": "", "nytt": ["Spill: ingen joker lenger. Alle står i lagslistene, og ved oddetall får det ene laget én spiller mer (f.eks. 5 mot 4).", "Ny fane «Opprop»: alle spillerne i én liste. Trykk på navnet til den som ikke er her – navnet blir stående, og ingenting flytter seg mens du roper opp.", "«Ferdig – del inn i grupper» låser gruppene og viser dem én om gangen med kartet: gruppens felt er markert, navnene står med stor skrift. «Vis gruppene» står over gruppelisten i «Dagens økt».", "Kommer noen for sent: trykk på navnet i oppropet. En stor beskjed i gruppens farge viser hvilken gruppe, hvor og hvem som er trener – med kartet. Ingen andre flyttes.", "«Vis lagene» i spilldelen: én bane om gangen med banen markert på kartet, «Lag 1 · med vest» og «Lag 2 · uten vest» med stor skrift, og innbytterne merket."], "feil": 2}, {"v": "", "date": "2026-10-26", "nytt": ["«Komme til avslutning»: alle stasjonskortene har «Vis øvelsen».", "Ny øvelse i «Komme til avslutning»: «Vegg og skudd».", "«2 mot 1 mot mål» går i én kø, med samme rotasjon som de andre 2 mot 1-øvelsene.", "Fra Høst B brukes høyst 2 ekte mål (5er eller 7er) per trening. De andre stasjonene bruker kjeglemål.", "Grupper: «Lås gruppene» når du har ropt dem opp. Kommer noen senere, får bare den spilleren en gruppe, og ingen andre flyttes.", "Oversiktskartet: etiketten ved hver stasjon viser også hvor mange baller stasjonen trenger, med et lite fotball-ikon.", "Færre baller: spill bruker 2 baller per kamp (én i spill, én hos treneren), og køøvelser bruker 3.", "Grupper: knappen «Kopier oppsett» er fjernet. Alle ser gruppene i appen.", "Spill: ett mål i hver ende av banen i stedet for fire kjeglemål. Kjeglemål er nå 5 m brede."], "feil": 3, "admin": ["Årshjul: «Planlegg» på hver periode viser treningene i perioden slik de blir, og du kan bytte øvelser på forhånd.", "Årshjul: nytt antall baller gjelder fra neste periode. Perioden dere er i beholder stasjonene sine."]}, {"v": "", "date": "2026-10-20", "nytt": ["Felles øvelser: kartet viser én øvelse om gangen. Trykk «Neste: øvelse 2» for å se hva som settes ut i drikkepausen.", "Felles øvelser: alle feltene er like store.", "To nye øvelser i «Spille oss fremover»: «Haien» og «Trafikklys». De kan velges som øvelse 1 i felles øvelser.", "Felles øvelser: spill er del 3 i oversiktskartet, etter øvelse 1 og 2. Trykk på navnet for å gå til stasjonskortet.", "Spill: maks 5 mot 5 og så store baner som mulig. Appen viser hvem som spiller på hvilken bane og hvem som er på lag sammen.", "Spill: hver bane har sin trener. Trenerne fordeles automatisk.", "Felles øvelser: trenerne bytter felt for hver trening, så alle får alle nivåene."], "feil": 1}, {"v": "", "date": "2026-10-13", "nytt": ["Begge 2 mot 1-øvelsene går i én kø, med fast rekkefølge for hvem som blir forsvarer.", "Treningene endrer seg gjennom temaet: de to første har spill på stasjonene, deretter kortere stasjoner og spill (75 min) eller felles øvelser for alle gruppene (60 min).", "Drikkepause etter hver andre stasjon.", "Kjeglepakker: appen lager pakkelisten selv og viser den ved hver stasjon på kartet.", "Ryddigere tidsplan: rigg på 10 minutter, og hvor lenge hver del varer står i et farget merke til høyre.", "«Vis øvelsen»: stasjonskortene i «Spille oss fremover» viser øvelsen som en animasjon.", "Samme farger på alle kort: blå angriper, rød forsvarer, gul joker/keeper/vegg og svart trener.", "«Hva er nytt»: her ser du hva som er endret i appen.", "Hver trener beholder øvelsen sin gjennom hele perioden, også når det kommer færre barn. Den som lager gruppene kan bytte trener på en stasjon."], "feil": 6, "admin": ["Felles øvelser: «2 mot 1 – Waves» kan velges sammen med «Før ballen over linja»."]}, {"v": "", "date": "2026-10-06", "nytt": [], "feil": 0, "admin": ["Importer et tidligere lagoppsett, så appen unngår å sette de samme spillerne sammen igjen."]}, {"v": "", "date": "2026-10-05", "nytt": ["Oppmøtet gjelder neste trening og nullstilles dagen etter, også for trenerne.", "Trenerne beholder stasjonen sin gjennom hele temaperioden."], "feil": 0}, {"v": "", "date": "2026-10-04", "nytt": ["1-ere står alltid foran 1½ – både når gruppene lages og når noen er borte.", "Flest spillere på de største banene.", "«Spill på stasjonene», flaten målt til 49,7 × 31,5 m, og tre nye øvelser for «Spille oss fremover».", "En øvelse du bytter, blir stående på samme stasjonsnummer.", "Samme øvelse kan ikke lenger havne på to stasjoner etter flere bytter."], "feil": 0}, {"v": "", "date": "2026-10-03", "nytt": ["Faste grupper med hele stallen, utjevning når noen er borte, og valg av trenere.", "Smartere utjevning: spillere flyttes via gruppene imellom, så hver havner nærmere sitt eget nivå."], "feil": 0, "admin": ["Delen for administrator på hjelpesiden vises bare når administratoren er logget inn.", "Knapp for å forkorte etternavn. Innliming fra Spond kjenner fortsatt igjen fullt navn."]}, {"v": "", "date": "2026-10-02", "nytt": ["Appen ligger på nett, og alle trenerne ser det samme uten egen konto.", "Én trener har ansvaret for å lage gruppene hver trening («Jeg lager gruppene i dag»).", "Brukerinstruksjonen «Slik bruker du appen» og en hjelp-knapp øverst til høyre.", "Ny tidsplan: 5 min rigg, stasjoner på minst 6 min, drikkepause, spill og samling uten minutter."], "feil": 0}];/*WN_LOG_END*/
+/*WN_LOG_START*/const WN_LOG=[{"v": "v92", "date": "", "nytt": ["Opprop: «Nullstill gruppene» fjerner dagens grupper og «kom sent». Oppmøtet blir stående, og du kan dele inn på nytt.", "Treningene er på torsdager fra 5. november.", "Dagens økt: velg bane for øvelsene og for spillet (sted og hel/halv/kvart). Kartet, feltene, stasjonskortene og spillbanene tilpasser seg plassen."], "feil": 0}, {"v": "", "date": "2026-10-26", "nytt": ["«Komme til avslutning»: alle stasjonskortene har «Vis øvelsen».", "Ny øvelse i «Komme til avslutning»: «Vegg og skudd».", "«2 mot 1 mot mål» går i én kø, med samme rotasjon som de andre 2 mot 1-øvelsene.", "Fra Høst B brukes høyst 2 ekte mål (5er eller 7er) per trening. De andre stasjonene bruker kjeglemål.", "Grupper: «Lås gruppene» når du har ropt dem opp. Kommer noen senere, får bare den spilleren en gruppe, og ingen andre flyttes.", "Oversiktskartet: etiketten ved hver stasjon viser også hvor mange baller stasjonen trenger, med et lite fotball-ikon.", "Færre baller: spill bruker 2 baller per kamp (én i spill, én hos treneren), og køøvelser bruker 3.", "Grupper: knappen «Kopier oppsett» er fjernet. Alle ser gruppene i appen.", "Spill: ett mål i hver ende av banen i stedet for fire kjeglemål. Kjeglemål er nå 5 m brede."], "feil": 3, "admin": ["Årshjul: «Planlegg» på hver periode viser treningene i perioden slik de blir, og du kan bytte øvelser på forhånd.", "Årshjul: nytt antall baller gjelder fra neste periode. Perioden dere er i beholder stasjonene sine."]}, {"v": "", "date": "2026-10-20", "nytt": ["Felles øvelser: kartet viser én øvelse om gangen. Trykk «Neste: øvelse 2» for å se hva som settes ut i drikkepausen.", "Felles øvelser: alle feltene er like store.", "To nye øvelser i «Spille oss fremover»: «Haien» og «Trafikklys». De kan velges som øvelse 1 i felles øvelser.", "Felles øvelser: spill er del 3 i oversiktskartet, etter øvelse 1 og 2. Trykk på navnet for å gå til stasjonskortet.", "Spill: maks 5 mot 5 og så store baner som mulig. Appen viser hvem som spiller på hvilken bane og hvem som er på lag sammen.", "Spill: hver bane har sin trener. Trenerne fordeles automatisk.", "Felles øvelser: trenerne bytter felt for hver trening, så alle får alle nivåene."], "feil": 1}, {"v": "", "date": "2026-10-13", "nytt": ["Begge 2 mot 1-øvelsene går i én kø, med fast rekkefølge for hvem som blir forsvarer.", "Treningene endrer seg gjennom temaet: de to første har spill på stasjonene, deretter kortere stasjoner og spill (75 min) eller felles øvelser for alle gruppene (60 min).", "Drikkepause etter hver andre stasjon.", "Kjeglepakker: appen lager pakkelisten selv og viser den ved hver stasjon på kartet.", "Ryddigere tidsplan: rigg på 10 minutter, og hvor lenge hver del varer står i et farget merke til høyre.", "«Vis øvelsen»: stasjonskortene i «Spille oss fremover» viser øvelsen som en animasjon.", "Samme farger på alle kort: blå angriper, rød forsvarer, gul joker/keeper/vegg og svart trener.", "«Hva er nytt»: her ser du hva som er endret i appen.", "Hver trener beholder øvelsen sin gjennom hele perioden, også når det kommer færre barn. Den som lager gruppene kan bytte trener på en stasjon."], "feil": 6, "admin": ["Felles øvelser: «2 mot 1 – Waves» kan velges sammen med «Før ballen over linja»."]}, {"v": "", "date": "2026-10-06", "nytt": [], "feil": 0, "admin": ["Importer et tidligere lagoppsett, så appen unngår å sette de samme spillerne sammen igjen."]}, {"v": "", "date": "2026-10-05", "nytt": ["Oppmøtet gjelder neste trening og nullstilles dagen etter, også for trenerne.", "Trenerne beholder stasjonen sin gjennom hele temaperioden."], "feil": 0}, {"v": "", "date": "2026-10-04", "nytt": ["1-ere står alltid foran 1½ – både når gruppene lages og når noen er borte.", "Flest spillere på de største banene.", "«Spill på stasjonene», flaten målt til 49,7 × 31,5 m, og tre nye øvelser for «Spille oss fremover».", "En øvelse du bytter, blir stående på samme stasjonsnummer.", "Samme øvelse kan ikke lenger havne på to stasjoner etter flere bytter."], "feil": 0}, {"v": "", "date": "2026-10-03", "nytt": ["Faste grupper med hele stallen, utjevning når noen er borte, og valg av trenere.", "Smartere utjevning: spillere flyttes via gruppene imellom, så hver havner nærmere sitt eget nivå."], "feil": 0, "admin": ["Delen for administrator på hjelpesiden vises bare når administratoren er logget inn.", "Knapp for å forkorte etternavn. Innliming fra Spond kjenner fortsatt igjen fullt navn."]}, {"v": "", "date": "2026-10-02", "nytt": ["Appen ligger på nett, og alle trenerne ser det samme uten egen konto.", "Én trener har ansvaret for å lage gruppene hver trening («Jeg lager gruppene i dag»).", "Brukerinstruksjonen «Slik bruker du appen» og en hjelp-knapp øverst til høyre.", "Ny tidsplan: 5 min rigg, stasjoner på minst 6 min, drikkepause, spill og samling uten minutter."], "feil": 0}];/*WN_LOG_END*/
 if(!WN_LOG.length) return;
 const KEY='g2018-sett-versjon';
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
