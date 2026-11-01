@@ -3278,7 +3278,8 @@ const TOURS={
 };
 const css=`.vm-ov{position:fixed;inset:0;z-index:70}
 .vm-dim{position:fixed;inset:0;background:rgba(10,20,14,.62)}
-.vm-ring{position:fixed;border-radius:10px;box-shadow:0 0 0 4px #F2C230,0 0 0 9999px rgba(10,20,14,.62);pointer-events:none}
+.vm-ring{position:fixed;border-radius:10px;box-shadow:0 0 0 4px #F2C230,0 0 0 9999px rgba(10,20,14,.62);pointer-events:none;transition:top .45s ease,left .45s ease,width .45s ease,height .45s ease}   /* rammen glir rolig til neste sted */
+@media (prefers-reduced-motion:reduce){.vm-ring{transition:none}}
 .vm-ring.blink{animation:vmBlink .5s ease-in-out infinite alternate}
 @keyframes vmBlink{from{box-shadow:0 0 0 4px #F2C230,0 0 0 9999px rgba(10,20,14,.62)}to{box-shadow:0 0 0 9px #FFE27A,0 0 0 9999px rgba(10,20,14,.62)}}
 .vm-tap{position:fixed;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:rgba(242,194,48,.85);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);pointer-events:none;animation:vmTap .5s ease-in-out infinite alternate}
@@ -3333,9 +3334,10 @@ function place(){
   if(box.classList.contains('vm-top')) box.style.top=(12+ti)+'px'; else box.style.top='';
 }
 function into(st){
-  const e=st._el, box=ov&&ov.querySelector('.vm-box'); if(!e||!box||e.closest('#callView,.sheet')) return;
+  const e=st._el, box=ov&&ov.querySelector('.vm-box'); if(!e||!box||e.closest('#callView,.sheet')) return false;
   const r=e.getBoundingClientRect(), ti=topInset();
-  if(r.top<ti+60||r.bottom>innerHeight-box.offsetHeight-30) scrollTo({top:Math.max(0,r.top+scrollY-ti-70),behavior:'auto'});
+  if(r.top<ti+60||r.bottom>innerHeight-box.offsetHeight-30) return scrollTo({top:Math.max(0,r.top+scrollY-ti-70),behavior:'smooth'})||true;   /* rolig rulling, så man ser hvor man går */
+  return false;
 }
 function show(dir){
   tmr.forEach(clearTimeout); tmr=[];
@@ -3349,7 +3351,8 @@ function show(dir){
     box.innerHTML=`<div class="vm-hd"><span><span class="vm-ov-tag">Øving</span>${esc(cur.title||'Vis meg')}${n>1?` · ${ix+1} av ${n}`:''}${st.h?' · '+esc(st.h):''}</span><button type="button" aria-label="Lukk" data-vm="x">✕</button></div>
       <div class="vm-t">${esc(st.t)}</div>${st.note?`<div class="vm-note">${esc(st.note)}</div>`:''}${missing&&st.miss?`<div class="vm-miss">${esc(st.miss)}</div>`:''}
       <div class="vm-nav"><button type="button" class="pri" data-vm="n">${ix===n-1?'Lukk':'Neste →'}</button></div>`;
-    into(st); place(); later(()=>{ place(); into(st); place(); },300);
+    const moved=into(st)!==false&&st._el&&!st._el.closest('#callView,.sheet'); place(); later(()=>{ place(); into(st); },900);
+    if(moved&&!st.do){ const nb=box.querySelector('[data-vm="n"]'); nb.disabled=true; later(()=>{ nb.disabled=false; nb.focus({preventScroll:true}); },1000); }
     /* Vis hva som skjer når du trykker: knappen blinker i to sekunder med en «finger» på, så skjer det. Neste blir aktiv etterpå. */
     if(st.do){ const nb=box.querySelector('[data-vm="n"]'); nb.disabled=true;
       later(()=>{ if(!ov) return; const ring=ov.querySelector('.vm-ring'); ring.classList.add('blink');
