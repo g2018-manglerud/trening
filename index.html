@@ -3244,12 +3244,12 @@ const P={
   coach:{pre:tab('trening'),sel:'#coachAtt',t:'Huk av trenerne som kommer. Da får hver trener sin stasjon.',do:fast=>{ for(let i=0;i<4;i++){ const go=()=>{ const b=document.querySelectorAll('#coachAtt button[data-c]')[i]; if(b&&b.getAttribute('aria-pressed')!=='true') b.click(); }; if(fast) go(); else setTimeout(go,i*350); } }},
   spond:{pre:tab('trening'),sel:'#rollCard li:nth-child(3)',t:'Se i Spond hvem som ikke kommer, og trykk på navnet. Navnet blir streket over.',note:'Trenerne og fraværet kan gjøres når som helst i uka før treningen. Gjør det gjerne sent, så stemmer det best med hvem som faktisk kommer.',do:()=>{ const b=q('#rollCard li:nth-child(3) button'); if(b&&!b.classList.contains('absent')) b.click(); }},
   call:{pre:tab('trening'),sel:'#rollCard ul',h:'På feltet',t:'Rop opp navnene i listen. Trykk på dem som ikke er der.'},
-  done:{pre:tab('trening'),sel:'#rollDoneBtn',alt:'#callView .callv-band',t:'Trykk «Ferdig – del inn i grupper».',do:()=>click('#rollDoneBtn')},
+  done:{pre:tab('trening'),sel:'#rollDoneBtn',alt:'#callView .callv-band',t:'Trykk «Ferdig – del inn i grupper».',do:()=>click('#rollDoneBtn'),after:()=>q('#callView .callv-band')},
   group:{sel:'#callView .callv-band',t:'Gruppene vises én om gangen: farge, stasjon, trener, kartet og navnene. Les dem opp.'},
   next:{sel:'#callNext',t:'Trykk «Neste gruppe» for neste. Etter siste gruppe kommer du tilbake til oppropet.',do:()=>click('#callNext')},
-  late:{pre:tab('trening'),sel:'#rollCard li button.absent',alt:'#lateSheet .late-box',t:'Kommer noen for sent? Trykk på navnet i oppropet.',do:()=>click(absentBtn())},
+  late:{pre:tab('trening'),sel:'#rollCard li button.absent',alt:'#lateSheet .late-box',t:'Kommer noen for sent? Trykk på navnet i oppropet.',do:()=>click(absentBtn()),after:()=>q('#lateSheet .late-box')},
   lateMsg:{sel:'#lateSheet .late-box',t:'Appen viser hvilken gruppe spilleren skal til, hvor de er og hvem som er trener. Ingen andre flyttes. Trykk «OK».'},
-  reset:{pre:tab('trening'),sel:'#rollReset',alt:'#resetSheet .sheet-box',t:'Ble det feil? Nederst i oppropet ligger «Nullstill gruppene».',do:()=>click('#rollReset')},
+  reset:{pre:tab('trening'),sel:'#rollReset',alt:'#resetSheet .sheet-box',t:'Ble det feil? Nederst i oppropet ligger «Nullstill gruppene».',do:()=>click('#rollReset'),after:()=>q('#resetSheet .sheet-box')},
   resetQ:{sel:'#resetSheet .sheet-box',t:'Du får et kontrollspørsmål. Trykker du «Ja», kan du dele inn på nytt. Oppmøtet blir stående.'},
   okt:{pre:okt('st'),sel:'#sessCards .nx-fseg',alt:'#nx-fig-st',h:'Treningen',t:'Gå til «Dagens økt». Under «Stasjoner» øverst på kartet ser du hvor hver gruppe starter og hvem som er trener hvor.',tf:'Gå til «Dagens økt». Med felles øvelser bytter du mellom «Øvelse 1», «Øvelse 2» og «Spill» øverst på kartet. Hver gruppe har sitt felt hele tiden.',t2:'Gå til «Dagens økt». Kartet viser hvor hver gruppe starter og hvem som er trener hvor. I dag spiller dere på noen av stasjonene, så det er ingen egen spilldel.'},
   map:{pre:okt('st'),sel:'#sessCards .nx-fview:not([hidden]) svg[aria-label^="Baneoversikt"]',alt:'#nx-fig-st svg',t:'Kartet viser stasjonene med nummer, størrelse, kjegler og baller. Gruppene bytter til neste nummer når treneren blåser.'},
@@ -3258,7 +3258,7 @@ const P={
   showG:{pre:okt('st'),sel:'#nxCall',t:'«Vis gruppene» viser gruppene én om gangen igjen, hvis du trenger det.'},
   spill:{pre:okt('st'),sel:'#sessCards .nx-fseg button:last-child',opt:true,h:'Spillet',t:'Når dere skal spille: trykk «Spill» øverst på kartet.',do:()=>view('spill')},
   pitches:{pre:okt('spill'),sel:'#sessCards .nx-fview:not([hidden]) svg[aria-label*="spillet"]',opt:true,t:'Her er banene og hvor mange som spiller på hver.'},
-  teams:{pre:okt('spill'),sel:'#sessCards .nx-fview:not([hidden]) .nx-tcall',alt:'#callView .callv-teams',opt:true,t:'Trykk «Vis lagene».',do:()=>click('#sessCards .nx-fview:not([hidden]) .nx-tcall')},
+  teams:{pre:okt('spill'),sel:'#sessCards .nx-fview:not([hidden]) .nx-tcall',alt:'#callView .callv-teams',opt:true,t:'Trykk «Vis lagene».',do:()=>click('#sessCards .nx-fview:not([hidden]) .nx-tcall'),after:()=>q('#callView .callv-teams')},
   team:{sel:'#callView .callv-teams',opt:true,t:'Én bane om gangen med lag 1 (med vest) og lag 2 (uten vest). Les opp lagene og trykk «Neste bane».'},
   end:{pre:closeAll,t:'Ferdig! Dette var øving med oppdiktede navn – ingenting ble lagret. Når du lukker, er alt som før.'}
 };
@@ -3293,7 +3293,7 @@ const css=`.vm-ov{position:fixed;inset:0;z-index:70}
 @keyframes vmTap{from{transform:scale(1)}to{transform:scale(.7)}}
 @media (prefers-reduced-motion:reduce){.vm-ring.blink,.vm-tap{animation:none}}
 .vm-box{position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:520px;background:var(--surface,#fff);color:var(--ink,#17211B);border-radius:14px;padding:14px 16px;box-shadow:0 8px 30px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:8px}
-.vm-box{top:0;transition:top .45s ease}   /* boksen glir mellom bunn og topp, den hopper ikke */
+.vm-box{top:0;transition:top .45s ease,opacity .2s ease}   /* boksen glir mellom bunn og topp, den hopper ikke */
 .vm-box.vm-in>*{animation:vmIn .3s ease}
 @keyframes vmIn{from{opacity:0}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){.vm-box{transition:none}.vm-box.vm-in>*{animation:none}}
@@ -3334,7 +3334,11 @@ const later=(f,ms)=>tmr.push(setTimeout(f,ms));
 function place(){
   if(!ov) return; const st=cur.steps[ix], ring=ov.querySelector('.vm-ring'), box=ov.querySelector('.vm-box');
   let el=st._after&&visible(st._after)?st._after:st._el; if(!visible(el)){ el=find(st.sel)||find(st.alt); st._el=el; }
-  const atBottom=()=>{ box.style.top=Math.max(8,innerHeight-box.offsetHeight-16)+'px'; }, dim=ov.querySelector('.vm-dim');
+  /* Bytter boksen side (nederst ↔ øverst), toner den ut og inn i stedet for å gli over skjermen. */
+  const setSide=(side,y)=>{ if(box._swap) return; if(box._side&&box._side!==side){ box._swap=true; box.style.opacity='0';
+      setTimeout(()=>{ box.style.transition='none'; box.style.top=(side==='top'?12:Math.max(8,innerHeight-box.offsetHeight-16))+'px'; void box.offsetWidth; box.style.transition=''; box.style.opacity=''; box._side=side; box._swap=false; },220); return; }
+    box._side=side; box.style.top=y+'px'; };
+  const atBottom=()=>setSide('bot',Math.max(8,innerHeight-box.offsetHeight-16)), dim=ov.querySelector('.vm-dim');
   if(!el){ ring.classList.add('off'); dim.classList.add('on'); atBottom(); return; }
   /* Mens siden ruller, er rammen skjult (skjermen er like mørk), og den kommer fram igjen når siden står stille. */
   ring.classList.toggle('off',moving); ring.classList.toggle('nofx',moving); dim.classList.toggle('on',moving);
@@ -3342,7 +3346,7 @@ function place(){
   const top=Math.max(ti+4,r.top-pad), bot=Math.min(vh-4,r.bottom+pad);
   ring.style.left=(r.left-pad)+'px'; ring.style.width=(r.width+2*pad)+'px'; ring.style.top=top+'px'; ring.style.height=Math.max(0,bot-top)+'px';
   /* Boksen står nederst. Bare når det som vises ligger nederst i et vindu som ikke kan rulles (gruppevisning, beskjeder), flyttes den opp. */
-  if(el.closest('#callView,.sheet')&&bot>vh-bh&&top>bh) box.style.top='12px'; else atBottom();
+  if(el.closest('#callView,.sheet')&&bot>vh-bh&&top>bh) setSide('top',12); else atBottom();
 }
 function into(st){
   const e=st._after||st._el, box=ov&&ov.querySelector('.vm-box'); if(!e||!box||e.closest('#callView,.sheet')||moving) return 0;
@@ -3382,8 +3386,11 @@ function show(dir){
         const el=st._el, tap=document.createElement('div'); tap.className='vm-tap';
         if(el){ const r=el.getBoundingClientRect(); tap.style.left=Math.min(r.left+r.width/2,r.left+60)+'px'; tap.style.top=(r.top+Math.min(r.height/2,26))+'px'; ov.appendChild(tap); }
         later(()=>{ ring.classList.remove('blink'); tap.remove(); st._done=true; try{ st.do(false); }catch(e){}
-          let extra=0; if(st.after){ try{ st._after=st.after(st)||null; }catch(e){} if(st._after){ const d=into(st); extra=d?d+400:0; } }
-          later(place,300); ready(1600+extra); },2500); },settle+1300); }
+          let extra=0; if(st.after){ try{ st._after=st.after(st)||null; }catch(e){}
+            if(st._after){ const d=into(st); extra=d?d+400:0;
+              /* Noe nytt åpner seg (gruppevisning, beskjed, kortet): rammen glir ikke over skjermen, den forsvinner og kommer fram på det nye stedet. */
+              if(!d){ moving=true; later(()=>{ moving=false; },450); extra=450; } } }
+          place(); later(place,300); ready(1600+extra); },2500); },settle+1300); }
     else if(moved){ nb.disabled=true; ready(settle+300); }
     else nb.focus({preventScroll:true});
   },280);
@@ -3448,7 +3455,7 @@ function init(){
   const hb=$('helpBtn'); if(hb) hb.onclick=()=>{ sheet.hidden=false; sheet.querySelector('.hp-box').scrollTop=0; };
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!sheet.hidden) close(); });
 }
-window.G2018_VISMEG={start,stop,tours:()=>Object.keys(TOURS)};
+window.G2018_VISMEG={start,stop,tours:()=>Object.keys(TOURS),current:()=>{ const st=cur&&cur.steps[ix]; return st?(st._after&&visible(st._after)?st._after:st._el):null; }};   /* current brukes av kontrollen */
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
 })();
 /* ===== VIS MEG (slutt) ===== */
