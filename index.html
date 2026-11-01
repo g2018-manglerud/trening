@@ -3253,7 +3253,8 @@ const P={
   resetQ:{sel:'#resetSheet .sheet-box',t:'Du får et kontrollspørsmål. Trykker du «Ja», kan du dele inn på nytt. Oppmøtet blir stående.'},
   okt:{pre:okt('st'),sel:'#sessCards .nx-fseg',alt:'#nx-fig-st',h:'Treningen',t:'Gå til «Dagens økt». Under «Stasjoner» øverst på kartet ser du hvor hver gruppe starter og hvem som er trener hvor.',tf:'Gå til «Dagens økt». Med felles øvelser bytter du mellom «Øvelse 1», «Øvelse 2» og «Spill» øverst på kartet. Hver gruppe har sitt felt hele tiden.',t2:'Gå til «Dagens økt». Kartet viser hvor hver gruppe starter og hvem som er trener hvor. I dag spiller dere på noen av stasjonene, så det er ingen egen spilldel.'},
   map:{pre:okt('st'),sel:'#sessCards .nx-fview:not([hidden]) svg[aria-label^="Baneoversikt"]',alt:'#nx-fig-st svg',t:'Kartet viser stasjonene med nummer, størrelse, kjegler og baller. Gruppene bytter til neste nummer når treneren blåser.'},
-  card:{pre:okt('st'),sel:'#sessCards .nx-list .nx-t a',alt:'#sessCards .nx-fview:not([hidden]) .nx-flink',t:'Trykk på navnet til en øvelse for å se kortet med tegning, steg og «Si dette» til barna.'},
+  card:{pre:okt('st'),sel:'#sessCards .nx-list .nx-t a',alt:'#sessCards .nx-fview:not([hidden]) .nx-flink',t:'Trykk på navnet til en øvelse, så kommer du ned til kortet med tegning, steg og «Si dette» til barna.',do:()=>{},
+    after:st=>{ const a=st._el; const id=a&&a.getAttribute('href'); return id&&id[0]==='#'?q(id):null; }},
   showG:{pre:okt('st'),sel:'#nxCall',t:'«Vis gruppene» viser gruppene én om gangen igjen, hvis du trenger det.'},
   spill:{pre:okt('st'),sel:'#sessCards .nx-fseg button:last-child',opt:true,h:'Spillet',t:'Når dere skal spille: trykk «Spill» øverst på kartet.',do:()=>view('spill')},
   pitches:{pre:okt('spill'),sel:'#sessCards .nx-fview:not([hidden]) svg[aria-label*="spillet"]',opt:true,t:'Her er banene og hvor mange som spiller på hver.'},
@@ -3280,8 +3281,11 @@ const TOURS={
   kort:{title:'Øvelseskortene',prep:'locked',steps:L('card','end')}
 };
 const css=`.vm-ov{position:fixed;inset:0;z-index:70}
-.vm-dim{position:fixed;inset:0;background:rgba(10,20,14,.62)}
-.vm-ring{position:fixed;border-radius:10px;box-shadow:0 0 0 4px #F2C230,0 0 0 9999px rgba(10,20,14,.62);pointer-events:none;transition:top .45s ease,left .45s ease,width .45s ease,height .45s ease}   /* rammen glir rolig til neste sted */
+.vm-dim{position:fixed;inset:0;background:rgba(10,20,14,.62);opacity:0;transition:opacity .3s ease}
+.vm-dim.on{opacity:1}
+.vm-ring{position:fixed;border-radius:10px;box-shadow:0 0 0 4px #F2C230,0 0 0 9999px rgba(10,20,14,.62);pointer-events:none;transition:top .45s ease,left .45s ease,width .45s ease,height .45s ease,opacity .3s ease}
+.vm-ring.off{opacity:0}
+.vm-ring.nofx{transition:opacity .3s ease}   /* mens siden ruller: rammen er skjult og flyttes uten glidning */   /* rammen glir rolig til neste sted */
 @media (prefers-reduced-motion:reduce){.vm-ring{transition:none}}
 .vm-ring.blink{animation:vmBlink .5s ease-in-out infinite alternate}
 @keyframes vmBlink{from{box-shadow:0 0 0 4px #F2C230,0 0 0 9999px rgba(10,20,14,.62)}to{box-shadow:0 0 0 9px #FFE27A,0 0 0 9999px rgba(10,20,14,.62)}}
@@ -3289,8 +3293,10 @@ const css=`.vm-ov{position:fixed;inset:0;z-index:70}
 @keyframes vmTap{from{transform:scale(1)}to{transform:scale(.7)}}
 @media (prefers-reduced-motion:reduce){.vm-ring.blink,.vm-tap{animation:none}}
 .vm-box{position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:520px;background:var(--surface,#fff);color:var(--ink,#17211B);border-radius:14px;padding:14px 16px;box-shadow:0 8px 30px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:8px}
-.vm-box.vm-bot{bottom:calc(12px + env(safe-area-inset-bottom,0px))}
-.vm-box.vm-top{top:12px}
+.vm-box{top:0;transition:top .45s ease}   /* boksen glir mellom bunn og topp, den hopper ikke */
+.vm-box.vm-in>*{animation:vmIn .3s ease}
+@keyframes vmIn{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.vm-box{transition:none}.vm-box.vm-in>*{animation:none}}
 .vm-hd{display:flex;justify-content:space-between;align-items:center;gap:8px;font:700 12px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#5A675E)}
 .vm-hd button{background:none;border:0;font:600 20px var(--body);color:var(--ink,#17211B);cursor:pointer;padding:0 4px;line-height:1}
 .vm-ov-tag{font:700 10.5px var(--body);letter-spacing:.06em;background:#F2C230;color:#17211B;border-radius:4px;padding:1px 6px;margin-right:6px}
@@ -3319,7 +3325,7 @@ const css=`.vm-ov{position:fixed;inset:0;z-index:70}
 .hp-close{width:100%;font:600 16px var(--body);border-radius:9px;padding:12px;cursor:pointer;border:1px solid var(--line,#D3DBD1);background:var(--surface-2,#F5F8F3);color:var(--ink,#17211B);margin-top:4px}
 .wn-show{display:inline-block;margin-left:6px;font:600 13px var(--body);color:var(--accent,#1F6B46);background:var(--accent-soft,#DDEDE3);border:0;border-radius:999px;padding:2px 10px;cursor:pointer;white-space:nowrap}
 @media print{.vm-start,.vm-ov,.hp-sheet{display:none!important}}`;
-let ov=null, cur=null, ix=0, raf=0, tmr=[];
+let ov=null, cur=null, ix=0, raf=0, tmr=[], moving=false;
 const visible=el=>el&&el.isConnected&&el.getClientRects().length>0&&getComputedStyle(el).visibility!=='hidden'&&!el.closest('[hidden],.hidden');
 const find=sel=>{ if(!sel) return null; for(const s of sel.split(',')){ const el=document.querySelector(s.trim()); if(visible(el)) return el; } return null; };
 /* Faste striper øverst (Dev/staging) skal ikke dekke det som vises. */
@@ -3327,20 +3333,30 @@ const topInset=()=>{ let b=0; document.querySelectorAll('.devbar,.stg').forEach(
 const later=(f,ms)=>tmr.push(setTimeout(f,ms));
 function place(){
   if(!ov) return; const st=cur.steps[ix], ring=ov.querySelector('.vm-ring'), box=ov.querySelector('.vm-box');
-  let el=st._el; if(!visible(el)){ el=find(st.sel)||find(st.alt); st._el=el; }
-  if(!el){ ring.style.display='none'; ov.querySelector('.vm-dim').style.display='block'; box.className='vm-box vm-bot'; box.style.top=''; return; }
-  ov.querySelector('.vm-dim').style.display='none'; ring.style.display='block';
+  let el=st._after&&visible(st._after)?st._after:st._el; if(!visible(el)){ el=find(st.sel)||find(st.alt); st._el=el; }
+  const atBottom=()=>{ box.style.top=Math.max(8,innerHeight-box.offsetHeight-16)+'px'; }, dim=ov.querySelector('.vm-dim');
+  if(!el){ ring.classList.add('off'); dim.classList.add('on'); atBottom(); return; }
+  /* Mens siden ruller, er rammen skjult (skjermen er like mørk), og den kommer fram igjen når siden står stille. */
+  ring.classList.toggle('off',moving); ring.classList.toggle('nofx',moving); dim.classList.toggle('on',moving);
   const r=el.getBoundingClientRect(), vh=innerHeight, bh=box.offsetHeight+24, pad=6, ti=el.closest('#callView,.sheet')?0:topInset();
   const top=Math.max(ti+4,r.top-pad), bot=Math.min(vh-4,r.bottom+pad);
   ring.style.left=(r.left-pad)+'px'; ring.style.width=(r.width+2*pad)+'px'; ring.style.top=top+'px'; ring.style.height=Math.max(0,bot-top)+'px';
-  box.className='vm-box '+((bot>vh-bh&&top>bh+ti)?'vm-top':'vm-bot');
-  if(box.classList.contains('vm-top')) box.style.top=(12+ti)+'px'; else box.style.top='';
+  /* Boksen står nederst. Bare når det som vises ligger nederst i et vindu som ikke kan rulles (gruppevisning, beskjeder), flyttes den opp. */
+  if(el.closest('#callView,.sheet')&&bot>vh-bh&&top>bh) box.style.top='12px'; else atBottom();
 }
 function into(st){
-  const e=st._el, box=ov&&ov.querySelector('.vm-box'); if(!e||!box||e.closest('#callView,.sheet')) return false;
+  const e=st._after||st._el, box=ov&&ov.querySelector('.vm-box'); if(!e||!box||e.closest('#callView,.sheet')||moving) return 0;
   const r=e.getBoundingClientRect(), ti=topInset();
-  if(r.top<ti+60||r.bottom>innerHeight-box.offsetHeight-30) return scrollTo({top:Math.max(0,r.top+scrollY-ti-70),behavior:'smooth'})||true;   /* rolig rulling, så man ser hvor man går */
-  return false;
+  if(r.top<ti+60||r.bottom>innerHeight-box.offsetHeight-30) return scrollSmooth(Math.max(0,r.top+scrollY-ti-70));
+  return 0;
+}
+/* Rolig rulling med myk start og slutt (lik på alle telefoner). Gir tilbake hvor lang tid den tar. */
+function scrollSmooth(y){
+  y=Math.min(y,document.documentElement.scrollHeight-innerHeight); const y0=scrollY, d=y-y0; if(Math.abs(d)<4) return 0;
+  const dur=Math.round(Math.min(1300,500+Math.abs(d)*0.3)), t0=performance.now(), ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+  moving=true;
+  const step=now=>{ if(!ov){ moving=false; return; } const k=Math.min(1,(now-t0)/dur); scrollTo(0,y0+d*ease(k)); if(k<1) requestAnimationFrame(step); else later(()=>{ moving=false; },60); };
+  requestAnimationFrame(step); return dur;
 }
 function show(dir){
   tmr.forEach(clearTimeout); tmr=[];
@@ -3351,19 +3367,25 @@ function show(dir){
     let el=find(st.sel), missing=st.sel&&!el; st._sel=st.sel; if(!el&&st.alt){ el=find(st.alt); st._sel=st.alt; } st._el=el;
     if(missing&&st.opt&&!el){ st._seen=false; if(dir<0&&ix>0){ return back(); } if(ix<n-1){ ix++; return show(1); } }
     st._seen=true;
-    const box=ov.querySelector('.vm-box');
+    const box=ov.querySelector('.vm-box'); st._after=null;
+    box.classList.remove('vm-in'); void box.offsetWidth; box.classList.add('vm-in');
     box.innerHTML=`<div class="vm-hd"><span><span class="vm-ov-tag">Øving</span>${esc(cur.title||'Vis meg')}${n>1?` · ${ix+1} av ${n}`:''}${st.h?' · '+esc(st.h):''}</span><button type="button" aria-label="Lukk" data-vm="x">✕</button></div>
       <div class="vm-t">${esc(missing&&st.t2?st.t2:(st.tf&&q('#sessCards .nx-fseg[data-felles]'))?st.tf:st.t)}</div>${st.note?`<div class="vm-note">${esc(st.note)}</div>`:''}${missing&&st.miss?`<div class="vm-miss">${esc(st.miss)}</div>`:''}
       <div class="vm-nav">${ix?'<button type="button" data-vm="p">← Forrige</button>':''}<button type="button" class="pri" data-vm="n">${ix===n-1?'Lukk':'Neste →'}</button></div>`;
-    const moved=into(st)!==false&&st._el&&!st._el.closest('#callView,.sheet'); place(); later(()=>{ place(); into(st); },900);
-    if(moved&&!st.do){ const nb=box.querySelector('[data-vm="n"]'); nb.disabled=true; later(()=>{ nb.disabled=false; nb.focus({preventScroll:true}); },1000); }
-    /* Vis hva som skjer når du trykker: knappen blinker i to sekunder med en «finger» på, så skjer det. Neste blir aktiv etterpå. */
-    if(st.do){ const nb=box.querySelector('[data-vm="n"]'); nb.disabled=true;
+    const nb=box.querySelector('[data-vm="n"]'), ready=ms=>later(()=>{ nb.disabled=false; nb.focus({preventScroll:true}); },ms);
+    const moved=into(st); place(); later(()=>{ place(); if(!moving) into(st); },(moved||0)+400);
+    const settle=moved?moved+400:0;   /* vent til rullingen er ferdig og rammen er på plass før noe skjer */
+    /* Vis hva som skjer når du trykker: først leser du teksten, så blinker knappen med en «finger» i 2,5 sekunder, så skjer det.
+       Resultatet får stå litt før «Neste» blir aktiv. */
+    if(st.do){ nb.disabled=true;
       later(()=>{ if(!ov) return; const ring=ov.querySelector('.vm-ring'); ring.classList.add('blink');
         const el=st._el, tap=document.createElement('div'); tap.className='vm-tap';
         if(el){ const r=el.getBoundingClientRect(); tap.style.left=Math.min(r.left+r.width/2,r.left+60)+'px'; tap.style.top=(r.top+Math.min(r.height/2,26))+'px'; ov.appendChild(tap); }
-        later(()=>{ ring.classList.remove('blink'); tap.remove(); st._done=true; try{ st.do(false); }catch(e){} later(()=>{ place(); nb.disabled=false; nb.focus({preventScroll:true}); },1200); },2000); },700); }
-    else box.querySelector('[data-vm="n"]').focus({preventScroll:true});
+        later(()=>{ ring.classList.remove('blink'); tap.remove(); st._done=true; try{ st.do(false); }catch(e){}
+          let extra=0; if(st.after){ try{ st._after=st.after(st)||null; }catch(e){} if(st._after){ const d=into(st); extra=d?d+400:0; } }
+          later(place,300); ready(1600+extra); },2500); },settle+1300); }
+    else if(moved){ nb.disabled=true; ready(settle+300); }
+    else nb.focus({preventScroll:true});
   },280);
 }
 /* «Forrige»: øvingen spoles tilbake til start og stegene før spilles raskt på nytt, så appen ser ut akkurat som da du var der. */
@@ -3380,13 +3402,13 @@ function start(id){
   const T=TOURS[id]; if(!T||!window.G2018_DEMO) return; stop(); cur=T; ix=0; T.steps.forEach(st=>{ st._seen=false; st._done=false; });
   try{ window.G2018_DEMO.enter(T.prep||'start'); }catch(e){ console.error(e); return; }
   ov=document.createElement('div'); ov.className='vm-ov'; ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true'); ov.setAttribute('aria-label',T.title||'Vis meg');
-  ov.innerHTML='<div class="vm-dim"></div><div class="vm-ring"></div><div class="vm-box vm-bot"></div>';
+  ov.innerHTML=`<div class="vm-dim"></div><div class="vm-ring"></div><div class="vm-box" style="top:${Math.max(8,innerHeight-230)}px"></div>`;
   ov.addEventListener('click',e=>{ const b=e.target.closest('[data-vm]'); if(!b||b.disabled) return; const k=b.dataset.vm;
     if(k==='p') back(); else if(k==='x'||ix===cur.steps.length-1) stop(); else { ix++; show(1); } });
   document.body.appendChild(ov); show(1); raf=requestAnimationFrame(loop);
 }
 function stop(){
-  tmr.forEach(clearTimeout); tmr=[]; cancelAnimationFrame(raf);
+  tmr.forEach(clearTimeout); tmr=[]; cancelAnimationFrame(raf); moving=false;
   if(ov){ ov.remove(); ov=null; }
   if(cur){ cur=null; try{ window.G2018_DEMO&&window.G2018_DEMO.exit(); }catch(e){ console.error(e); } }
 }
