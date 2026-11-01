@@ -3248,9 +3248,9 @@ const P={
   lateMsg:{sel:'#lateSheet .late-box',t:'Appen viser hvilken gruppe spilleren skal til, hvor de er og hvem som er trener. Ingen andre flyttes. Trykk «OK».'},
   reset:{pre:tab('trening'),sel:'#rollReset',alt:'#resetSheet .sheet-box',t:'Ble det feil? Nederst i oppropet ligger «Nullstill gruppene».',do:()=>click('#rollReset')},
   resetQ:{sel:'#resetSheet .sheet-box',t:'Du får et kontrollspørsmål. Trykker du «Ja», kan du dele inn på nytt. Oppmøtet blir stående.'},
-  okt:{pre:okt('st'),sel:'#sessCards .nx-fseg',alt:'#nx-fig-st',h:'Treningen',t:'Gå til «Dagens økt». Under «Stasjoner» øverst på kartet ser du hvor hver gruppe starter og hvem som er trener hvor.'},
+  okt:{pre:okt('st'),sel:'#sessCards .nx-fseg',alt:'#nx-fig-st',h:'Treningen',t:'Gå til «Dagens økt». Under «Stasjoner» øverst på kartet ser du hvor hver gruppe starter og hvem som er trener hvor.',tf:'Gå til «Dagens økt». Med felles øvelser bytter du mellom «Øvelse 1», «Øvelse 2» og «Spill» øverst på kartet. Hver gruppe har sitt felt hele tiden.',t2:'Gå til «Dagens økt». Kartet viser hvor hver gruppe starter og hvem som er trener hvor. I dag spiller dere på noen av stasjonene, så det er ingen egen spilldel.'},
   map:{pre:okt('st'),sel:'#sessCards .nx-fview:not([hidden]) svg[aria-label^="Baneoversikt"]',alt:'#nx-fig-st svg',t:'Kartet viser stasjonene med nummer, størrelse, kjegler og baller. Gruppene bytter til neste nummer når treneren blåser.'},
-  card:{pre:okt('st'),sel:'#sessCards .nx-list .nx-t a',t:'Trykk på navnet til en øvelse for å se kortet med tegning, steg og «Si dette» til barna.'},
+  card:{pre:okt('st'),sel:'#sessCards .nx-list .nx-t a',alt:'#sessCards .nx-fview:not([hidden]) .nx-flink',t:'Trykk på navnet til en øvelse for å se kortet med tegning, steg og «Si dette» til barna.'},
   showG:{pre:okt('st'),sel:'#nxCall',t:'«Vis gruppene» viser gruppene én om gangen igjen, hvis du trenger det.'},
   spill:{pre:okt('st'),sel:'#sessCards .nx-fseg button:last-child',opt:true,h:'Spillet',t:'Når dere skal spille: trykk «Spill» øverst på kartet.',do:()=>view('spill')},
   pitches:{pre:okt('spill'),sel:'#sessCards .nx-fview:not([hidden]) svg[aria-label*="spillet"]',opt:true,t:'Her er banene og hvor mange som spiller på hver.'},
@@ -3349,7 +3349,7 @@ function show(dir){
     if(missing&&st.opt&&!el){ if(dir<0&&ix>0){ ix--; return show(-1); } if(ix<n-1){ ix++; return show(1); } }
     const box=ov.querySelector('.vm-box');
     box.innerHTML=`<div class="vm-hd"><span><span class="vm-ov-tag">Øving</span>${esc(cur.title||'Vis meg')}${n>1?` · ${ix+1} av ${n}`:''}${st.h?' · '+esc(st.h):''}</span><button type="button" aria-label="Lukk" data-vm="x">✕</button></div>
-      <div class="vm-t">${esc(st.t)}</div>${st.note?`<div class="vm-note">${esc(st.note)}</div>`:''}${missing&&st.miss?`<div class="vm-miss">${esc(st.miss)}</div>`:''}
+      <div class="vm-t">${esc(missing&&st.t2?st.t2:(st.tf&&q('#sessCards .nx-fseg[data-felles]'))?st.tf:st.t)}</div>${st.note?`<div class="vm-note">${esc(st.note)}</div>`:''}${missing&&st.miss?`<div class="vm-miss">${esc(st.miss)}</div>`:''}
       <div class="vm-nav"><button type="button" class="pri" data-vm="n">${ix===n-1?'Lukk':'Neste →'}</button></div>`;
     const moved=into(st)!==false&&st._el&&!st._el.closest('#callView,.sheet'); place(); later(()=>{ place(); into(st); },900);
     if(moved&&!st.do){ const nb=box.querySelector('[data-vm="n"]'); nb.disabled=true; later(()=>{ nb.disabled=false; nb.focus({preventScroll:true}); },1000); }
