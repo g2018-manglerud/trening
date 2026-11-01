@@ -3203,19 +3203,22 @@ function demoEnter(prep){
   const me=()=>{ S.lead={name:'Deg',dev:DEV,day:todayLocal()}; };
   if(prep==='claim'||prep==='locked'){ me(); }
   if(prep==='locked'){ S.coachPresent={'Trener 1':true,'Trener 2':true,'Trener 3':true,'Trener 4':true}; S.present[S.players[2].id]=false; lockNow(); }
+  DEMO.init=JSON.stringify(S); DEMO.initTab=tab;   /* utgangspunktet for øvingen – «Forrige» spoler tilbake hit og spiller stegene på nytt */
   render();
 }
+function demoClose(){ $('lateSheet').classList.add('hidden'); $('resetSheet').classList.add('hidden');
+  const v=$('callView'); if(v&&!v.classList.contains('hidden')){ v.classList.remove('show'); v.classList.add('hidden'); document.body.style.overflow=''; } }
+function demoReset(){ if(!DEMO||!DEMO.init) return; demoClose(); S=JSON.parse(DEMO.init); confirmKey=null; sel=null; tab=DEMO.initTab; render(); }
 function demoClaim(){ if(DEMO){ S.lead={name:'Deg',dev:DEV,day:todayLocal()}; render(); } }
 function demoExit(){
   if(!DEMO) return; const d=DEMO; DEMO=null;
-  $('lateSheet').classList.add('hidden'); $('resetSheet').classList.add('hidden');
-  const v=$('callView'); if(v&&!v.classList.contains('hidden')){ v.classList.remove('show'); v.classList.add('hidden'); document.body.style.overflow=''; }
+  demoClose();
   S=d.S; MODE=d.MODE; CAN=d.CAN; CANS=d.CANS; sel=d.sel; confirmKey=d.confirmKey; tab=d.tab;
   if(d.main){ const c=d.main; ['lock','venue','groupLevels','presentDay','lead','coachPresent','coachHomes','present','groups','history'].forEach(k=>c[k]=S[k]); S=c; lastM=JSON.stringify(mainPart()); if(CAN) saveLocal(); }
   if(d.sess){ SESS=d.sess; applySess(d.sess); lastS=JSON.stringify(sessPart()); }
   render();
 }
-window.G2018_DEMO={enter:demoEnter,exit:demoExit,claim:demoClaim,active:()=>!!DEMO};
+window.G2018_DEMO={enter:demoEnter,exit:demoExit,reset:demoReset,close:demoClose,claim:demoClaim,active:()=>!!DEMO};
 $('createYes').onclick=()=>{ const c=pendingCreate; pendingCreate=null; $('createBox').classList.add('hidden'); if(c) connect(c,true); };
 $('createNo').onclick=()=>{ pendingCreate=null; $('createBox').classList.add('hidden'); };
 
@@ -3230,7 +3233,7 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 const q=s=>document.querySelector(s);
 const click=s=>{ const e=typeof s==='string'?q(s):s; if(e) e.click(); };
 const isOpen=id=>{ const e=$(id); return e&&!e.classList.contains('hidden'); };
-const closeAll=()=>{ if(isOpen('callView')) click('#callX'); if(isOpen('lateSheet')) click('#lateOk'); if(isOpen('resetSheet')) click('#resetNo'); };
+const closeAll=()=>{ if(window.G2018_DEMO&&window.G2018_DEMO.close) return window.G2018_DEMO.close(); if(isOpen('callView')) click('#callX'); if(isOpen('lateSheet')) click('#lateOk'); if(isOpen('resetSheet')) click('#resetNo'); };   /* lukker med en gang (ikke med forsinkelse), så «Forrige» kan spille stegene raskt */
 const tab=t=>()=>{ closeAll(); const b=$('tab-'+t); if(b&&b.getAttribute('aria-selected')!=='true') b.click(); };
 const view=k=>{ const bs=[...document.querySelectorAll('#sessCards .nx-fseg button')]; const b=k==='spill'?bs[bs.length-1]:bs[0]; if(b&&b.getAttribute('aria-pressed')!=='true') b.click(); };
 const okt=k=>()=>{ tab('ovelser')(); view(k); };
@@ -3238,7 +3241,7 @@ const absentBtn=()=>q('#rollCard li button.absent');
 /* Stegene i hele prosessen. do = det appen gjør etter et øyeblikk, så du ser hva som skjer når du trykker. */
 const P={
   lead:{pre:tab('trening'),sel:'#leadClaim',alt:'#leadBar',h:'Før trening',t:'Trykk «Jeg lager gruppene i dag». Da er det du som styrer oppropet og gruppene.',do:()=>window.G2018_DEMO.claim()},
-  coach:{pre:tab('trening'),sel:'#coachAtt',t:'Huk av trenerne som kommer. Da får hver trener sin stasjon.',do:()=>{ document.querySelectorAll('#coachAtt button[data-c]').forEach((b,i)=>{ if(i<4&&b.getAttribute('aria-pressed')!=='true') setTimeout(()=>click(document.querySelectorAll('#coachAtt button[data-c]')[i]),i*350); }); }},
+  coach:{pre:tab('trening'),sel:'#coachAtt',t:'Huk av trenerne som kommer. Da får hver trener sin stasjon.',do:fast=>{ for(let i=0;i<4;i++){ const go=()=>{ const b=document.querySelectorAll('#coachAtt button[data-c]')[i]; if(b&&b.getAttribute('aria-pressed')!=='true') b.click(); }; if(fast) go(); else setTimeout(go,i*350); } }},
   spond:{pre:tab('trening'),sel:'#rollCard li:nth-child(3)',t:'Se i Spond hvem som ikke kommer, og trykk på navnet. Navnet blir streket over.',note:'Trenerne og fraværet kan gjøres når som helst i uka før treningen. Gjør det gjerne sent, så stemmer det best med hvem som faktisk kommer.',do:()=>{ const b=q('#rollCard li:nth-child(3) button'); if(b&&!b.classList.contains('absent')) b.click(); }},
   call:{pre:tab('trening'),sel:'#rollCard ul',h:'På feltet',t:'Rop opp navnene i listen. Trykk på dem som ikke er der.'},
   done:{pre:tab('trening'),sel:'#rollDoneBtn',alt:'#callView .callv-band',t:'Trykk «Ferdig – del inn i grupper».',do:()=>click('#rollDoneBtn')},
@@ -3346,11 +3349,12 @@ function show(dir){
   later(()=>{
     if(!ov) return;
     let el=find(st.sel), missing=st.sel&&!el; st._sel=st.sel; if(!el&&st.alt){ el=find(st.alt); st._sel=st.alt; } st._el=el;
-    if(missing&&st.opt&&!el){ if(dir<0&&ix>0){ ix--; return show(-1); } if(ix<n-1){ ix++; return show(1); } }
+    if(missing&&st.opt&&!el){ st._seen=false; if(dir<0&&ix>0){ return back(); } if(ix<n-1){ ix++; return show(1); } }
+    st._seen=true;
     const box=ov.querySelector('.vm-box');
     box.innerHTML=`<div class="vm-hd"><span><span class="vm-ov-tag">Øving</span>${esc(cur.title||'Vis meg')}${n>1?` · ${ix+1} av ${n}`:''}${st.h?' · '+esc(st.h):''}</span><button type="button" aria-label="Lukk" data-vm="x">✕</button></div>
       <div class="vm-t">${esc(missing&&st.t2?st.t2:(st.tf&&q('#sessCards .nx-fseg[data-felles]'))?st.tf:st.t)}</div>${st.note?`<div class="vm-note">${esc(st.note)}</div>`:''}${missing&&st.miss?`<div class="vm-miss">${esc(st.miss)}</div>`:''}
-      <div class="vm-nav"><button type="button" class="pri" data-vm="n">${ix===n-1?'Lukk':'Neste →'}</button></div>`;
+      <div class="vm-nav">${ix?'<button type="button" data-vm="p">← Forrige</button>':''}<button type="button" class="pri" data-vm="n">${ix===n-1?'Lukk':'Neste →'}</button></div>`;
     const moved=into(st)!==false&&st._el&&!st._el.closest('#callView,.sheet'); place(); later(()=>{ place(); into(st); },900);
     if(moved&&!st.do){ const nb=box.querySelector('[data-vm="n"]'); nb.disabled=true; later(()=>{ nb.disabled=false; nb.focus({preventScroll:true}); },1000); }
     /* Vis hva som skjer når du trykker: knappen blinker i to sekunder med en «finger» på, så skjer det. Neste blir aktiv etterpå. */
@@ -3358,18 +3362,27 @@ function show(dir){
       later(()=>{ if(!ov) return; const ring=ov.querySelector('.vm-ring'); ring.classList.add('blink');
         const el=st._el, tap=document.createElement('div'); tap.className='vm-tap';
         if(el){ const r=el.getBoundingClientRect(); tap.style.left=Math.min(r.left+r.width/2,r.left+60)+'px'; tap.style.top=(r.top+Math.min(r.height/2,26))+'px'; ov.appendChild(tap); }
-        later(()=>{ ring.classList.remove('blink'); tap.remove(); try{ st.do(); }catch(e){} later(()=>{ place(); nb.disabled=false; nb.focus({preventScroll:true}); },1200); },2000); },700); }
+        later(()=>{ ring.classList.remove('blink'); tap.remove(); st._done=true; try{ st.do(false); }catch(e){} later(()=>{ place(); nb.disabled=false; nb.focus({preventScroll:true}); },1200); },2000); },700); }
     else box.querySelector('[data-vm="n"]').focus({preventScroll:true});
   },280);
 }
+/* «Forrige»: øvingen spoles tilbake til start og stegene før spilles raskt på nytt, så appen ser ut akkurat som da du var der. */
+function back(){
+  if(!cur||ix<1) return; tmr.forEach(clearTimeout); tmr=[];
+  let k=ix-1; while(k>0&&cur.steps[k].opt&&!cur.steps[k]._seen) k--;
+  try{ window.G2018_DEMO.reset(); }catch(e){}
+  for(let j=0;j<k;j++){ const st=cur.steps[j]; try{ st.pre&&st.pre(); if(st.do&&st._done) st.do(true); }catch(e){} }
+  for(let j=k;j<cur.steps.length;j++) cur.steps[j]._done=false;
+  ix=k; show(-1);
+}
 function loop(){ place(); raf=requestAnimationFrame(loop); }
 function start(id){
-  const T=TOURS[id]; if(!T||!window.G2018_DEMO) return; stop(); cur=T; ix=0;
+  const T=TOURS[id]; if(!T||!window.G2018_DEMO) return; stop(); cur=T; ix=0; T.steps.forEach(st=>{ st._seen=false; st._done=false; });
   try{ window.G2018_DEMO.enter(T.prep||'start'); }catch(e){ console.error(e); return; }
   ov=document.createElement('div'); ov.className='vm-ov'; ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true'); ov.setAttribute('aria-label',T.title||'Vis meg');
   ov.innerHTML='<div class="vm-dim"></div><div class="vm-ring"></div><div class="vm-box vm-bot"></div>';
   ov.addEventListener('click',e=>{ const b=e.target.closest('[data-vm]'); if(!b||b.disabled) return; const k=b.dataset.vm;
-    if(k==='x'||ix===cur.steps.length-1) stop(); else { ix++; show(1); } });
+    if(k==='p') back(); else if(k==='x'||ix===cur.steps.length-1) stop(); else { ix++; show(1); } });
   document.body.appendChild(ov); show(1); raf=requestAnimationFrame(loop);
 }
 function stop(){
