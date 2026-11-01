@@ -3279,6 +3279,11 @@ const TOURS={
 const css=`.vm-ov{position:fixed;inset:0;z-index:70}
 .vm-dim{position:fixed;inset:0;background:rgba(10,20,14,.62)}
 .vm-ring{position:fixed;border-radius:10px;box-shadow:0 0 0 4px #F2C230,0 0 0 9999px rgba(10,20,14,.62);pointer-events:none}
+.vm-ring.blink{animation:vmBlink .5s ease-in-out infinite alternate}
+@keyframes vmBlink{from{box-shadow:0 0 0 4px #F2C230,0 0 0 9999px rgba(10,20,14,.62)}to{box-shadow:0 0 0 9px #FFE27A,0 0 0 9999px rgba(10,20,14,.62)}}
+.vm-tap{position:fixed;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:rgba(242,194,48,.85);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);pointer-events:none;animation:vmTap .5s ease-in-out infinite alternate}
+@keyframes vmTap{from{transform:scale(1)}to{transform:scale(.7)}}
+@media (prefers-reduced-motion:reduce){.vm-ring.blink,.vm-tap{animation:none}}
 .vm-box{position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:520px;background:var(--surface,#fff);color:var(--ink,#17211B);border-radius:14px;padding:14px 16px;box-shadow:0 8px 30px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:8px}
 .vm-box.vm-bot{bottom:calc(12px + env(safe-area-inset-bottom,0px))}
 .vm-box.vm-top{top:12px}
@@ -3345,9 +3350,12 @@ function show(dir){
       <div class="vm-t">${esc(st.t)}</div>${st.note?`<div class="vm-note">${esc(st.note)}</div>`:''}${missing&&st.miss?`<div class="vm-miss">${esc(st.miss)}</div>`:''}
       <div class="vm-nav"><button type="button" class="pri" data-vm="n">${ix===n-1?'Lukk':'Neste →'}</button></div>`;
     into(st); place(); later(()=>{ place(); into(st); place(); },300);
-    /* Vis hva som skjer når du trykker: knappen er markert først, så skjer det. Neste blir aktiv etterpå. */
+    /* Vis hva som skjer når du trykker: knappen blinker i to sekunder med en «finger» på, så skjer det. Neste blir aktiv etterpå. */
     if(st.do){ const nb=box.querySelector('[data-vm="n"]'); nb.disabled=true;
-      later(()=>{ try{ st.do(); }catch(e){} later(()=>{ place(); nb.disabled=false; nb.focus({preventScroll:true}); },700); },1100); }
+      later(()=>{ if(!ov) return; const ring=ov.querySelector('.vm-ring'); ring.classList.add('blink');
+        const el=st._el, tap=document.createElement('div'); tap.className='vm-tap';
+        if(el){ const r=el.getBoundingClientRect(); tap.style.left=Math.min(r.left+r.width/2,r.left+60)+'px'; tap.style.top=(r.top+Math.min(r.height/2,26))+'px'; ov.appendChild(tap); }
+        later(()=>{ ring.classList.remove('blink'); tap.remove(); try{ st.do(); }catch(e){} later(()=>{ place(); nb.disabled=false; nb.focus({preventScroll:true}); },1200); },2000); },700); }
     else box.querySelector('[data-vm="n"]').focus({preventScroll:true});
   },280);
 }
