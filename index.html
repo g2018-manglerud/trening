@@ -1520,7 +1520,7 @@ function cardHtml(e,o){
     ${e.turn?`<div class="turn" data-step="turn"><b>BYTTE ROLLER</b><span>${esc(e.turn)}</span></div>`:''}
     <div class="say"><div class="lbl">${esc(e.sayLabel||'SI DETTE')}</div>${e.say.map(s=>`<div>${esc(s)}</div>`).join('')}</div>
     <div class="var"><div><b>ENKLERE</b><span>${esc(e.easier)}</span></div><div><b>VANSKELIGERE</b><span>${esc(e.harder)}</span></div></div>
-    ${o.goalInfo?goalBox(e):''}
+    ${o.goalOv?`<div class="goalbox"><b>MÅL</b><span>${esc(o.goalOv)}</span></div>`:o.goalInfo?goalBox(e):''}
     <div class="ft"><span><b>Utstyr:</b> ${esc(e.gear)}</span><span>Fagplan 8–9 år, NFF</span></div>
   </article>`;
 }
@@ -2198,7 +2198,7 @@ function cellsIn(x0,y0,W,H,n,flip){
   const k=flip?Math.floor(n/2):Math.ceil(n/2); return row(y0,H/2,k).concat(row(y0+H/2,H/2,n-k));
 }
 const goal5=(x,y,vert,sideSign)=>{ /* 5er-mål, åpningen 5 m */
-  const L=50,D=9; return vert?`<rect x="${x-(sideSign<0?D:0)}" y="${y-L/2}" width="${D}" height="${L}" fill="rgba(255,255,255,.3)" stroke="#fff" stroke-width="3"/>`
+  const L=50,D=9; if(OBS) OBS.push(vert?[x-D-2,y-L/2-2,x+D+2,y+L/2+2]:[x-L/2-2,y-D-2,x+L/2+2,y+D+2]); return vert?`<rect x="${x-(sideSign<0?D:0)}" y="${y-L/2}" width="${D}" height="${L}" fill="rgba(255,255,255,.3)" stroke="#fff" stroke-width="3"/>`
     :`<rect x="${x-L/2}" y="${y-(sideSign<0?D:0)}" width="${L}" height="${D}" fill="rgba(255,255,255,.3)" stroke="#fff" stroke-width="3"/>`;};
 /* Øvelsens område (fra kortet), snudd og eventuelt krympet så det passer i cellen med 1,5 m luft rundt. */
 function fit(e,c,turn){
@@ -2224,20 +2224,23 @@ function stationSvg(r,e,col,mark,o){
   o=o||{}; const X=r.x*U,Y=r.y*U,W=r.w*U,H=r.h*U; let s='';
   const half=(o.turn||0)>=2;   /* snudd en halv runde: målene og linjene i den andre enden (v95) */
   const gp=(gi,x,y)=>{ const g=o.goals&&o.goals[gi]; return g?[X+g[0]*W,Y+g[1]*H]:[x,y]; };   /* mål som er dratt til et annet sted */
-  const wrapG=(gi,x,y,svg)=>o.edit?`<g class="mgoal" data-st="${o.st}" data-g="${gi}" data-x="${x}" data-y="${y}" style="cursor:grab">${svg}<circle cx="${x}" cy="${y}" r="22" fill="rgba(242,194,48,.18)" stroke="#F2C230" stroke-width="2" stroke-dasharray="4 3"/></g>`:svg;
+  const wrapG=(gi,x,y,svg)=>o.edit?`<g class="mgoal" data-st="${o.st}" data-g="${gi}" data-x="${x}" data-y="${y}" style="cursor:grab">${svg}<circle cx="${x}" cy="${y}" r="22" fill="rgba(242,194,48,${o.sel===gi?'.35':'.18'})" stroke="#F2C230" stroke-width="${o.sel===gi?4:2}"${o.sel===gi?'':' stroke-dasharray="4 3"'}/></g>`:svg;
+  /* Måltype (v95): det største av de valgte målene tegnes. */
+  const drawG=(gi,x,y,d,sg,fb)=>{ const t=gtOf(o.gtype,gi,d); if(o.rec) o.rec(gi,t);
+    return t.includes('stort')?goal5(x,y,long,sg):t.includes('lite')?goalBig(x,y,long,sg):fb(x,y); };
   s+=`<rect x="${X}" y="${Y}" width="${W}" height="${H}" fill="rgba(255,255,255,.13)" stroke="rgba(255,255,255,.75)" stroke-width="1.5" stroke-dasharray="6 5"/>`;
   [[X,Y],[X+W,Y],[X,Y+H],[X+W,Y+H]].forEach(([x,y])=>s+=bigCone(x,y,col));
   const long=W>=H; /* målene står på kortsidene */
   const endPts=long?[[X,Y+H/2,-1],[X+W,Y+H/2,1]]:[[X+W/2,Y,-1],[X+W/2,Y+H,1]]; if(half) endPts.reverse();
   const coneGoal=(x,y)=>long?cone(x,y-15)+cone(x,y+15):cone(x-15,y)+cone(x+15,y);
   const L=layoutOf(e);
-  if(L==='ends'||L==='linesgoals') endPts.forEach(([x0,y0],gi)=>{ const [x,y]=gp(gi,x0,y0); s+=wrapG(gi,x,y,coneGoal(x,y)); });
-  if(L==='endone'||L==='linesgoal1'){const [x,y]=gp(1,endPts[1][0],endPts[1][1]); s+=wrapG(1,x,y,coneGoal(x,y));}
+  if(L==='ends'||L==='linesgoals') endPts.forEach(([x0,y0,sg],gi)=>{ const [x,y]=gp(gi,x0,y0); s+=wrapG(gi,x,y,drawG(gi,x,y,'k',sg,coneGoal)); });
+  if(L==='endone'||L==='linesgoal1'){const sg=endPts[1][2], [x,y]=gp(1,endPts[1][0],endPts[1][1]); s+=wrapG(1,x,y,drawG(1,x,y,'k',sg,coneGoal));}
   /* Felles øvelser, øvelse 2: ring rundt kjeglene som settes ut i drikkepausen. */
   if(mark&&(L==='ends'||L==='endone')) (L==='ends'?endPts.map((q,gi)=>gp(gi,q[0],q[1])):[gp(1,endPts[1][0],endPts[1][1])]).forEach(([x,y])=>{ if(OBS) OBS.push([x-27,y-27,x+27,y+27]); s+=`<circle cx="${x}" cy="${y}" r="25" fill="none" stroke="#FFE066" stroke-width="3" stroke-dasharray="6 4"/>`; });
-  if(L==='bigone'){const sg=endPts[1][2], [x,y]=gp(1,endPts[1][0],endPts[1][1]); s+=wrapG(1,x,y,goalBig(x,y,long,sg));}
-  if(L==='bigboth') endPts.forEach(([x0,y0,sg],gi)=>{ const [x,y]=gp(gi,x0,y0); s+=wrapG(gi,x,y,goalBig(x,y,long,sg)); });
-  if(L==='slalom'){const n=4;for(let i=1;i<=n;i++){const t0=0.15+0.55*i/n, t=half?1-t0:t0; s+=long?cone(X+W*t,Y+H/2,9):cone(X+W/2,Y+H*t,9);} const sg=endPts[1][2], [x,y]=gp(1,endPts[1][0],endPts[1][1]); s+=wrapG(1,x,y,goalBig(x,y,long,sg));}
+  if(L==='bigone'){const sg=endPts[1][2], [x,y]=gp(1,endPts[1][0],endPts[1][1]); s+=wrapG(1,x,y,drawG(1,x,y,'l',sg,coneGoal));}
+  if(L==='bigboth') endPts.forEach(([x0,y0,sg],gi)=>{ const [x,y]=gp(gi,x0,y0); s+=wrapG(gi,x,y,drawG(gi,x,y,'l',sg,coneGoal)); });
+  if(L==='slalom'){const n=4;for(let i=1;i<=n;i++){const t0=0.15+0.55*i/n, t=half?1-t0:t0; s+=long?cone(X+W*t,Y+H/2,9):cone(X+W/2,Y+H*t,9);} const sg=endPts[1][2], [x,y]=gp(1,endPts[1][0],endPts[1][1]); s+=wrapG(1,x,y,drawG(1,x,y,'l',sg,coneGoal));}
   if(L==='gates'){[[.62,.25],[.25,.62],[.5,.48],[.8,.7],[.45,.85]].map(([a,b])=>half?[1-a,1-b]:[a,b]).forEach(([a,b])=>{const x=X+W*a,y=Y+H*b;s+=long?cone(x-7,y,9)+cone(x+7,y,9):cone(x,y-7,9)+cone(x,y+7,9);});}
   if(L==='endzones'){const d=2*U; if(OBS) OBS.push(...(long?[[X+d-2,Y,X+d+2,Y+H],[X+W-d-2,Y,X+W-d+2,Y+H]]:[[X,Y+d-2,X+W,Y+d+2],[X,Y+H-d-2,X+W,Y+H-d+2]])); s+=long?`<path d="M${X+d},${Y} V${Y+H} M${X+W-d},${Y} V${Y+H}" stroke="#fff" stroke-width="2" stroke-dasharray="4 4" fill="none"/>`+cone(X+d,Y)+cone(X+d,Y+H)+cone(X+W-d,Y)+cone(X+W-d,Y+H)
       :`<path d="M${X},${Y+d} H${X+W} M${X},${Y+H-d} H${X+W}" stroke="#fff" stroke-width="2" stroke-dasharray="4 4" fill="none"/>`+cone(X,Y+d)+cone(X+W,Y+d)+cone(X,Y+H-d)+cone(X+W,Y+H-d);}
@@ -2311,7 +2314,8 @@ function stationsDrawing(P,view){
   if(F){ const w=Math.min(...fits.map(f=>f.w)), h=Math.min(...fits.map(f=>f.h));
     fits=fits.map((f,i)=>({w,h,shrunk:f.shrunk||w<f.w-0.01||h<f.h-0.01,x:cs[i].x+(cs[i].w-w)/2,y:cs[i].y+(cs[i].h-h)/2})); }
   if(!F||view===0) P.fits=fits;
-  const obs=[]; EX.forEach((e,i)=>{ if(!(gst&&i>=N-2)){ OBS=[]; s+=stationSvg(fits[i],e,BIBS[i%BIBS.length].c,mark,{turn:turnOf(i),goals:(PLc.goals||{})[tKey(i)],st:i,edit:!!P._medit}); obs[i]=OBS; OBS=null; } });
+  const obs=[]; EX.forEach((e,i)=>{ if(!(gst&&i>=N-2)){ OBS=[]; s+=stationSvg(fits[i],e,BIBS[i%BIBS.length].c,mark,{turn:turnOf(i),goals:(PLc.goals||{})[tKey(i)],gtype:(PLc.gtype||{})[tKey(i)],st:i,edit:!!P._medit,
+      sel:P._medit&&MGSEL&&!MGSEL.game&&MGSEL.st===i?MGSEL.gi:null,rec:P._gt?(gi,t)=>P._gt['s'+i+':'+gi]=t:null}); obs[i]=OBS; OBS=null; } });
   if(gst){ const X=GR.x*U,Y=GR.y*U,W=GR.w*U,H=GR.h*U;
     s+=`<rect x="${X}" y="${Y}" width="${W}" height="${H}" fill="rgba(255,255,255,.13)" stroke="#fff" stroke-width="2"/>`;
     s+=`<path d="M${X},${Y+H/2} H${X+W}" stroke="rgba(255,255,255,.7)" stroke-width="1.5" stroke-dasharray="6 5"/>`;
@@ -2323,7 +2327,7 @@ function stationsDrawing(P,view){
     if(gst&&i>=N-2){ const top=i===N-2; s+=badge(r.x*U+22,top?r.y*U+30:(r.y+r.h)*U-30,i+1,bib,top?'Lag A':'Lag B'); return; }
     const BP=findSpot(r,(obs[i]||[]).filter(b=>b[2]-b[0]<14||b[0]>r.x*U+14||b[1]>r.y*U+14).concat(baseBlocks(r,e).slice(0,1)),36,36,r.x*U+4,r.y*U+4)||[r.x*U+4,r.y*U+4];
     const bb=[BP[0]-1,BP[1]-1,BP[0]+37,BP[1]+37];
-    const PK=packChip(r,e,BIBS[i%BIBS.length].c,(obs[i]||[]).concat([bb]),ballsFor(e,P.gs));
+    const PK=packChip(r,e,BIBS[i%BIBS.length].c,(obs[i]||[]).concat([bb]),ballsFor(e,P.gs),(PLc.gtype||{})[tKey(i)]);
     const SL=sizeLabel(r,e,(obs[i]||[]).concat([bb],PK.box?[PK.box]:[]),BP);
     s+=badge(BP[0]+18,BP[1]+18,i+1,bib,null)+SL.svg+PK.svg;
     { /* Navnet på øvelsen nederst i stasjonen, så kartet viser hva som står hvor */
@@ -2358,7 +2362,7 @@ function fieldTxt(e){
     endone:'Kjeglemålet står midt på linje B, enden de angriper mot.',ends:'Ett kjeglemål i hver ende.',gates:'Hvite kjegler: porter inne i feltet.',gates6:'Hvite kjegler: porter inne i feltet.'}[L]||'';
 }
 let fView=0;
-let MEDIT=false, MSEL=null;   /* «Flytt og snu» på oversiktskartet (v95, bare administrator) */
+let MEDIT=false, MSEL=null, MGSEL=null;   /* MGSEL: målet som er trykket på {game,st,gi} */   /* «Flytt og snu» på oversiktskartet (v95, bare administrator) */
 function showFView(scroll){
   document.querySelectorAll('#sessCards .nx-fview').forEach(v=>v.hidden=Number(v.dataset.v)!==fView);
   document.querySelectorAll('#sessCards .nx-fseg button').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.fgo)===fView)));
@@ -2447,12 +2451,13 @@ function gameDrawing(P){
     const gl=pt%2?!long:long;   /* hvilke sider målene står på */
     const ends=gl?[[X,Y+H/2,-1],[X+W,Y+H/2,1]]:[[X+W/2,Y,-1],[X+W/2,Y+H,1]];
     ends.forEach(([x0,y0,sg],gi)=>{ const x=pg&&pg[gi]?X+pg[gi][0]*W:x0, y=pg&&pg[gi]?Y+pg[gi][1]*H:y0, long=gl; const s0=s.length;
-      if(big&&L!=='four') s+=goal5(x,y,long,sg);
-      else if(L==='bigboth') s+=goalBig(x,y,long,sg);
+      const gt=L==='four'?null:gtOf(((PLg.pgtype||{})[i]),gi,big?'s':L==='bigboth'?'l':'k'); if(gt&&P._gt) P._gt['p'+i+':'+gi]=gt;   /* måltype (v95) */
+      if(gt&&gt.includes('stort')) s+=goal5(x,y,long,sg);
+      else if(gt&&gt.includes('lite')) s+=goalBig(x,y,long,sg);
       else if(L==='four'){ s+=long?cone(x,Y+H*0.25-12)+cone(x,Y+H*0.25+12)+cone(x,Y+H*0.75-12)+cone(x,Y+H*0.75+12)
                                   :cone(X+W*0.25-12,y)+cone(X+W*0.25+12,y)+cone(X+W*0.75-12,y)+cone(X+W*0.75+12,y); }
       else s+=long?cone(x,y-25)+cone(x,y+25):cone(x-25,y)+cone(x+25,y);   /* kjeglemål 5 m */
-      if(P._medit&&L!=='four'){ const g=s.slice(s0); s=s.slice(0,s0)+`<g class="mgoal" data-st="${i}" data-g="${gi}" data-x="${x}" data-y="${y}" style="cursor:grab">${g}<circle cx="${x}" cy="${y}" r="26" fill="rgba(242,194,48,.18)" stroke="#F2C230" stroke-width="2" stroke-dasharray="4 3"/></g>`; }
+      if(P._medit&&L!=='four'){ const g=s.slice(s0); s=s.slice(0,s0)+`<g class="mgoal" data-st="${i}" data-g="${gi}" data-x="${x}" data-y="${y}" style="cursor:grab">${g}${(sl=>`<circle cx="${x}" cy="${y}" r="26" fill="rgba(242,194,48,${sl?'.35':'.18'})" stroke="#F2C230" stroke-width="${sl?4:2}"${sl?'':' stroke-dasharray="4 3"'}/>`)(MGSEL&&MGSEL.game&&MGSEL.st===i&&MGSEL.gi===gi)}</g>`; }
     });
     s+=`<text x="${(r.x+w/2)*U}" y="${(r.y+h/2)*U+7}" text-anchor="middle" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="700" font-size="22" fill="#fff" stroke="#1f3d26" stroke-width="3" paint-order="stroke">Bane ${'ABCDEF'[i]}</text>`;
     s+=`<text x="${(r.x+w/2)*U}" y="${(r.y+h/2)*U+26}" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="13" fill="#fff" stroke="#1f3d26" stroke-width="3" paint-order="stroke">${P.gameFmt(nOn[i])}</text>`;
@@ -2470,16 +2475,18 @@ function stationLegend(P,picks,mark){
   ${white?`<span>${coneIco('#FFFFFF')}Hvite kjegler: mål, porter og linjer inne i stasjonen</span>`:''}
   ${mark?`<span><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7.5" fill="none" stroke="#C9A400" stroke-width="2.5" stroke-dasharray="4 3"/></svg>Settes ut i drikkepausen før øvelse 2</span>`:''}
   ${lines?`<span><svg width="26" height="10" viewBox="0 0 26 10" aria-hidden="true"><line x1="1" y1="5" x2="25" y2="5" stroke="#17211B" stroke-width="3"/></svg>Linje i enden (start, stopp eller vegg)</span>`:''}
-  ${big?`<span>${goalIco}Lite mål (eller kjeglemål)</span>`:''}${P.mode==='stasjon'?`<span>${goalIco}Spillstasjon: 5er-mål i hver ende</span>`:''}
+  ${big?`<span>${goalIco}Lite mål (eller kjeglemål)</span>`:''}${Object.values((P.place||{}).gtype||{}).some(g=>Object.values(g||{}).some(t=>Array.isArray(t)&&t.includes('stort')))?`<span>${goalIco}5er/7er-mål (valgt selv)</span>`:''}${P.mode==='stasjon'?`<span>${goalIco}Spillstasjon: 5er-mål i hver ende</span>`:''}
   <span><svg width="58" height="18" viewBox="0 0 58 18" aria-hidden="true"><rect x="0.75" y="0.75" width="56.5" height="16.5" rx="5" fill="#fff" stroke="#2F6FD0" stroke-width="1.5"/><path d="M10,4 L15,14 L5,14 z" fill="#2F6FD0" stroke="#17211B" stroke-width="1"/><text x="17" y="13.5" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="700" font-size="12" fill="#17211B">4</text><path d="M34,4 L39,14 L29,14 z" fill="#fff" stroke="#17211B" stroke-width="1"/><text x="41" y="13.5" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="700" font-size="12" fill="#17211B">6</text></svg>Kjeglepakken: kjegler til området + kjegler inne i området</span>
   <span><span aria-hidden="true" style="font-size:14px">⚽</span><b style="margin:0 4px 0 2px">4</b>Baller til stasjonen</span>
   <span><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="${P.sz.real?'#F2C230':'#17211B'}" stroke="#17211B" stroke-width="1.5"/></svg>Stasjonsnummer${P.sz.real?', i fargen til gruppa som starter der':''}</span></div>`;
 }
 function gameLegend(P){
   const L=P.game.layoutSmall||(P.game.goal==='kjegle'?'ends':'bigboth');
-  if(P.mode!=='fire'&&L!=='four') return `<div class="legend nx-leg"><span>${coneIco('#F07C2A')}Hjørnekjegler</span><span>${goalIco}5er-mål i hver ende (eller kjeglemål, 5 m)</span></div>`;
+  const own=Object.values((P.place||{}).pgtype||{}).flatMap(g=>Object.values(g||{})).filter(Array.isArray);   /* valgt selv (v95) */
+  const ownL=own.some(t=>t.includes('lite')&&!t.includes('stort'))?`<span>${goalIco}Lite mål / Bazooka (valgt selv)</span>`:'', ownK=own.some(t=>t.length===1&&t[0]==='kjegle')?`<span>${coneIco('#FFFFFF')}${coneIco('#FFFFFF')}Kjeglemål (valgt selv)</span>`:'', ownS=own.some(t=>t.includes('stort'))?`<span>${goalIco}5er/7er-mål (valgt selv)</span>`:'';
+  if(P.mode!=='fire'&&L!=='four') return `<div class="legend nx-leg"><span>${coneIco('#F07C2A')}Hjørnekjegler</span><span>${goalIco}5er-mål i hver ende (eller kjeglemål, 5 m)</span>${ownL}${ownK}</div>`;
   return `<div class="legend nx-leg"><span>${coneIco('#F07C2A')}Hjørnekjegler</span>
-  ${L==='bigboth'?`<span>${goalIco}Lite mål i hver ende (eller kjeglemål)</span>`:`<span>${coneIco('#FFFFFF')}${coneIco('#FFFFFF')}${L==='four'?'Kjeglemål, 3 m – to i hver ende':'Kjeglemål, 5 m, i hver ende (eller små mål)'}</span>`}</div>`;
+  ${L==='bigboth'?`<span>${goalIco}Lite mål i hver ende (eller kjeglemål)</span>`:`<span>${coneIco('#FFFFFF')}${coneIco('#FFFFFF')}${L==='four'?'Kjeglemål, 3 m – to i hver ende':'Kjeglemål, 5 m, i hver ende (eller små mål)'}</span>`}${ownS}</div>`;
 }
 
 /* Kjeglepakken vist på kartet: liten etikett med kjegler til området (stasjonsfargen), kjegler inne i området (hvite)
@@ -2508,14 +2515,14 @@ function sizeLabel(r,e,obs,bp){
   /* Ingen ledig plass: under nummeret (samme sted som før). */
   return {svg:`<text x="${bp[0]+38}" y="${bp[1]+23}" text-anchor="start" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="12.5" fill="#fff" stroke="#1f3d26" stroke-width="3" paint-order="stroke">${esc(t)}</text>`,box:null};
 }
-function packChip(r,e,col,obs,balls){
-  const L=layoutOf(e), inner=INNER[L]||0, goals=GOALS[L]||0;
+function packChip(r,e,col,obs,balls,gt){
+  const G=gearOf(e,gt), inner=G.inner, goals=G.goals;
   const X=r.x*U,Y=r.y*U,W=r.w*U,H=r.h*U;
   const items=[{k:'c',f:col,n:4}]; if(inner) items.push({k:'c',f:'#FFFFFF',n:inner}); if(goals) items.push({k:'g',n:goals}); if(balls) items.push({k:'b',n:balls});
   const iw=it=>(it.k==='g'?14:it.k==='b'?14:10)+3+String(it.n).length*7;
   const cw=items.reduce((a,it)=>a+iw(it),0)+(items.length-1)*6+10, ch=18;
   /* Navnet på øvelsen nederst og hjørnekjeglene er også hindringer. */
-  const pos=findSpot(r,obs.concat(baseBlocks(r,e)),cw,ch,X+W-cw-10,Y+12); if(!pos) return balls?packChip(r,e,col,obs,0):{svg:'',box:null};
+  const pos=findSpot(r,obs.concat(baseBlocks(r,e)),cw,ch,X+W-cw-10,Y+12); if(!pos) return balls?packChip(r,e,col,obs,0,gt):{svg:'',box:null};
   const box=[pos[0],pos[1],pos[0]+cw,pos[1]+ch];
   let [x,y]=pos, out=`<g aria-hidden="true"><rect x="${x}" y="${y}" width="${cw}" height="${ch}" rx="5" fill="rgba(255,255,255,.93)" stroke="${col}" stroke-width="1.5"/>`;
   x+=5; items.forEach(it=>{
@@ -2531,20 +2538,40 @@ function packChip(r,e,col,obs,balls){
 const INNER={linesgoals:4,linesgoal1:2,endone:2,ends:4,slalom:4,gates:10,endzones:4,gates6:12,centre:3};
 const GOALS={bigone:1,bigboth:2,slalom:1};
 const goalsOf=e=>e?GOALS[layoutOf(e)]||0:0;
+/* Måltype per mål (v95): administrator kan velge én eller flere typer i «Flytt og snu». Flere valgt = alle fungerer.
+   Kartet tegner det største valgte målet. Kjegler telles i kjeglepakken bare når kjeglemål er eneste valg. */
+const GSLOTS={ends:[[0,'k'],[1,'k']],linesgoals:[[0,'k'],[1,'k']],endone:[[1,'k']],linesgoal1:[[1,'k']],bigone:[[1,'l']],slalom:[[1,'l']],bigboth:[[0,'l'],[1,'l']]};
+const GT_DEF={k:['kjegle'],l:['lite','kjegle'],s:['stort','kjegle']};
+const GT_ORDER=['kjegle','lite','stort'];
+const GT_NAME={kjegle:'Kjeglemål',lite:'Lite mål / Bazooka',stort:'5er/7er-mål'};
+const gtOf=(gt,gi,d)=>(gt&&Array.isArray(gt[gi])&&gt[gi].length?gt[gi]:GT_DEF[d]);
+function gearOf(e,gt){
+  const L=layoutOf(e); let inner=INNER[L]||0, small=0, big=0; const alts=[];
+  (GSLOTS[L]||[]).forEach(([gi,d])=>{ const t=gtOf(gt,gi,d); if(d==='k') inner-=2;
+    if(t.length===1&&t[0]==='kjegle') inner+=2; else { if(t.includes('stort')) big++; else small++; alts.push(t); } });
+  return {inner,small,big,goals:small+big,alts};
+}
+/* «1 lite mål (eller 2 kjegler)», «2 5er/7er-mål eller små mål» … */
+function goalPhrase(alts){
+  const c={}; alts.forEach(t=>{ const k=GT_ORDER.filter(x=>t.includes(x)).join('+'); c[k]=(c[k]||0)+1; });
+  return Object.entries(c).map(([k,n])=>{ const t=k.split('+'), m=[];
+    if(t.includes('stort')) m.push('5er/7er-mål'); if(t.includes('lite')) m.push(n===1?'lite mål':'små mål');
+    return `${n} ${m.reverse().join(' eller ')}${t.includes('kjegle')?` (eller ${n*2} kjegler)`:''}`; });
+}
 function conePacks(P){
   const N=P.picks.length, gst=P.mode==='stasjon';
   const rows=P.picks.map((e,i)=>{ if(gst&&i>=N-2) return i===N-2?{i,title:'Spillstasjon',outer:4,inner:0,goals:0,g5:2}:null;
-    const L=layoutOf(e); return {i,title:e.title,balls:ballsFor(e,P.gs),outer:4,inner:INNER[L]||0,goals:GOALS[L]||0,lines:L==='twolines'||L==='linesgoals'||L==='linesgoal1'?2:L==='stopline'?1:0}; }).filter(Boolean);
-  const tot=rows.reduce((a,r)=>({o:a.o+r.outer,n:a.n+r.inner,g:a.g+r.goals,b:a.b+(r.balls||0)}),{o:0,n:0,g:0,b:0});
+    const L=layoutOf(e), G=gearOf(e,((P.place||{}).gtype||{})[P.felles?'felles':e.id]); return {i,title:e.title,balls:ballsFor(e,P.gs),outer:4,inner:G.inner,goals:G.goals,gsm:G.small,gbig:G.big,alts:G.alts,lines:L==='twolines'||L==='linesgoals'||L==='linesgoal1'?2:L==='stopline'?1:0}; }).filter(Boolean);
+  const tot=rows.reduce((a,r)=>({o:a.o+r.outer,n:a.n+r.inner,g:a.g+(r.gsm||0),g5:a.g5+(r.gbig||0),b:a.b+(r.balls||0)}),{o:0,n:0,g:0,g5:0,b:0});
   const li=rows.map(r=>{const bib=P.sz.real?BIBS[r.i%BIBS.length]:null;
     const parts=[`<b>${r.outer}</b> til området`];
     if(r.inner) parts.push(`<b>${r.inner}</b> inne i en annen farge`);
-    if(r.goals) parts.push(`${r.goals} ${r.goals===1?'lite mål':'små mål'} (eller ${r.goals*2} kjegler)`);
+    if(r.goals) parts.push(...goalPhrase(r.alts));
     if(r.g5) parts.push('2 femmermål');
     if(r.balls) parts.push(`<b>${r.balls}</b> ${r.balls===1?'ball':'baller'}`);
     if(r.lines) parts.push(r.lines===2?'linje i hver ende':'linje i den ene enden');
     return `<li><span class="nx-num" style="background:${bib?bib.c:'var(--ink)'};color:${bib?bib.t:'var(--surface)'}">${r.i+1}</span><span><b>${esc(r.title)}</b><br><span class="hint">${parts.join(' · ')}</span></span></li>`;}).join('');
-  return `<details class="saved noprint nx-packs"><summary><span class="sv-t"><b>Kjeglepakker</b><span>${tot.o+tot.n} kjegler: ${tot.o} til områdene + ${tot.n} inne i stasjonene${tot.g?` · ${tot.g} små mål`:''}${tot.b?` · ${tot.b} baller`:''}</span></span><svg class="chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+  return `<details class="saved noprint nx-packs"><summary><span class="sv-t"><b>Kjeglepakker</b><span>${tot.o+tot.n} kjegler: ${tot.o} til områdene + ${tot.n} inne i stasjonene${tot.g?` · ${tot.g} ${tot.g===1?'lite mål':'små mål'}`:''}${tot.g5?` · ${tot.g5} 5er/7er-mål`:''}${tot.b?` · ${tot.b} baller`:''}</span></span><svg class="chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
     <div class="sv-body"><div class="hint">Pakk én pose per stasjon før trening: 4 like kjegler til hjørnene på området, og en annen farge til alt som står inne i området. Fargene på kartet er bare forslag – bruk det dere har.</div><ul class="nx-pk">${li}</ul></div></details>`;
 }
 function gameSummary(P){const c={};P.pitchSizes.forEach(n=>{const t=P.gameFmt(n);c[t]=(c[t]||0)+1;});return Object.entries(c).map(([t,k])=>`${k} ${k===1?'bane':'baner'} med ${t}`).join(', ');}
@@ -2605,12 +2632,16 @@ function render(){
   t+=P.gameMin; rows.push(`<tr><td class="tm"></td><td>Samling: «Hva var gøy i dag?»${P.T?` og «${['Hvem fikk spilt ballen fremover?','Hvem scoret eller prøvde å skyte?','Hvem vant ballen?','Hvem stoppet et skudd?'][w.t]}»`:''}</td></tr>`);
   }
   const over=P.cost>P.balls;
-  P._medit=MEDIT&&NX_ENV.canEdit; if(!NX_ENV.canEdit) MEDIT=false;
+  P._medit=MEDIT&&NX_ENV.canEdit; if(!NX_ENV.canEdit) MEDIT=false; if(!P._medit) MGSEL=null; P._gt=P._medit?{}:null;
   const placed=!!P.place&&Object.keys(P.place).length>0;
-  const medit=!NX_ENV.canEdit?'':P._medit?`<div class="note noprint nx-medit" style="display:flex;flex-direction:column;gap:8px"><div><b>Flytt og snu.</b> ${P.felles||P.mode==='stasjon'?'':'Trykk på en stasjon og så på en annen, så bytter de plass. '}↻ snur ${P.mode==='stspill'?'feltet':'feltet eller banen'}. Dra et mål for å flytte det.${MSEL!==null?` <b>Stasjon ${MSEL+1} er valgt – trykk der den skal stå.</b>`:''} Gjelder hele perioden.</div>
+  const medit=!NX_ENV.canEdit?'':P._medit?`<div class="note noprint nx-medit" style="display:flex;flex-direction:column;gap:8px"><div><b>Flytt og snu.</b> ${P.felles||P.mode==='stasjon'?'':'Trykk på en stasjon og så på en annen, så bytter de plass. '}↻ snur ${P.mode==='stspill'?'feltet':'feltet eller banen'}. Dra et mål for å flytte det, trykk på det for å velge type.${MSEL!==null?` <b>Stasjon ${MSEL+1} er valgt – trykk der den skal stå.</b>`:''} Gjelder hele perioden.</div><!--GTPICK-->
       <div class="row" style="gap:8px"><button type="button" class="btn small primary" id="nxMDone">Ferdig</button>${placed?'<button type="button" class="btn small" id="nxMAuto">Tilbake til automatisk</button>':''}</div></div>`
     :`<div class="row noprint nx-medit" style="gap:8px;align-items:center"><button type="button" class="btn small" id="nxMEdit">✥ Flytt og snu</button>${placed?'<span class="hint">Du har plassert øvelser eller mål selv.</span><button type="button" class="linkbtn" id="nxMAuto">Tilbake til automatisk</button>':''}</div>`;
-  const drawing=medit+(P.felles?fellesViews(P):P.mode==='stspill'?stationsDrawing(P):stGameViews(P,stationsDrawing(P)));
+  const draws=(P.felles?fellesViews(P):P.mode==='stspill'?stationsDrawing(P):stGameViews(P,stationsDrawing(P)));
+  const gsel=P._medit&&MGSEL&&P._gt?P._gt[(MGSEL.game?'p':'s')+MGSEL.st+':'+MGSEL.gi]:null;
+  const gpick=gsel?`<div class="nx-gtpick" style="display:flex;flex-direction:column;gap:6px"><span class="hint"><b>Målet du trykket på (${MGSEL.game?'bane '+'ABCDEF'[MGSEL.st]:'stasjon '+(MGSEL.st+1)}):</b> velg ett eller flere – alle som er valgt, fungerer.</span>
+      <div class="seg" role="group" aria-label="Måltype">${GT_ORDER.map(k=>`<button type="button" data-gt="${k}" aria-pressed="${gsel.includes(k)}">${GT_NAME[k]}</button>`).join('')}</div></div>`:'';
+  const drawing=medit.replace('<!--GTPICK-->',gpick)+draws;
   const spIdx=P.felles?2:P.mode==='stspill'?-1:1;   /* hvilken knapp som er spillet */
   const CP=P._cp||(P._cp=coachPlan(P));
   const gst=P.mode==='stasjon';
@@ -2661,9 +2692,12 @@ function render(){
     <div class="hint">${P.felles?'Alle feltene settes opp likt. Gruppene blir på sitt felt hele tiden, også i øvelse 2.':`Bytt med klokka: 1 → 2 → … → ${N} → 1. Kjeglene står hele tiden, bare gruppene flytter.`}</div>${conePacks(P)}</div>`,'nx-fig-st',P.felles||spIdx===1?'':stationLegend(P),spIdx>0?null:undefined);
   const gameFig=()=>figure(P.felles?'Spillet etter øvelsene':'Spillet etter stasjonene',gameDrawing(P),`<div class="hint">${P.sz.n} spillere, maks 5 mot 5: ${esc(gameSummary(P))}. Bruk kjeglene fra stasjonene.</div>${gameTeams(P)||(P.sz.real?'':'<div class="hint">Lag gruppene under «Grupper», så kommer lagene på hver bane her.</div>')}`,'nx-fig-game',gameLegend(P),P.fieldSp);
   /* Størrelsen på kortene = størrelsen på kartet i dag */
+  /* Måltype valgt selv (v95): egen linje på kortet */
+  const goalOv=(e,k)=>{ const gt=((P.place||{}).gtype||{})[k]; if(!gt||!Object.keys(gt).length) return ''; const G=gearOf(e,gt);
+    return G.alts.length?'I dag: '+goalPhrase(G.alts).join(' og ')+'.':'I dag: kjeglemål (to kjegler).'; };
   const areaOf=i=>{const f=(P.fits||[])[i]; return f?`${Math.round(f.w)} × ${Math.round(f.h)} m`:undefined;};
   const gameArea=P.pitchWH&&P.pitchWH.length?[...new Set(P.pitchWH)].join(' / ')+' m':undefined;
-  const cards=P.felles?[[P.felles.e1,'Øvelse 1 · alle felt'],[P.felles.e2,'Øvelse 2 · samme felt']].map(([e,tag],i)=>`<div class="cardwrap" id="nx-card-${i}" style="width:100%">${cardHtml(e,{tag,minutes:P.stMin,area:areaOf(0)})}</div>`).join('')+`<div class="cardwrap" id="nx-card-game" style="width:100%">${cardHtml(P.game,{tag:'Spill',minutes:P.gameMin,area:gameArea})}</div>`:P.picks.map((e,i)=>gst&&i===N-1?'':`<div class="cardwrap" id="nx-card-${i}" style="width:100%">${cardHtml(e,{tag:(gst&&i===N-2?`Stasjon ${N-1} og ${N}`:'Stasjon '+(i+1))+(CP.byStation[i]?' · '+CP.byStation[i]:''),minutes:P.stMin,area:gst&&i===N-2?undefined:areaOf(i)})}</div>`).join('')+
+  const cards=P.felles?[[P.felles.e1,'Øvelse 1 · alle felt'],[P.felles.e2,'Øvelse 2 · samme felt']].map(([e,tag],i)=>`<div class="cardwrap" id="nx-card-${i}" style="width:100%">${cardHtml(e,{tag,minutes:P.stMin,area:areaOf(0),goalOv:goalOv(e,'felles')})}</div>`).join('')+`<div class="cardwrap" id="nx-card-game" style="width:100%">${cardHtml(P.game,{tag:'Spill',minutes:P.gameMin,area:gameArea})}</div>`:P.picks.map((e,i)=>gst&&i===N-1?'':`<div class="cardwrap" id="nx-card-${i}" style="width:100%">${cardHtml(e,{tag:(gst&&i===N-2?`Stasjon ${N-1} og ${N}`:'Stasjon '+(i+1))+(CP.byStation[i]?' · '+CP.byStation[i]:''),minutes:P.stMin,area:gst&&i===N-2?undefined:areaOf(i),goalOv:gst&&i>=N-2?'':goalOv(e,e.id)})}</div>`).join('')+
     (P.mode==='stspill'?'':`<div class="cardwrap" id="nx-card-game" style="width:100%">${cardHtml(P.game,{tag:'Spill',minutes:P.gameMin,area:gameArea})}</div>`);
   $('sessCards').innerHTML=`<div class="cardwrap" style="width:100%">${stationsFig}</div>`+''+cards;
   if($('nxCall')) $('nxCall').onclick=()=>NX_ENV.openCall();
@@ -2684,9 +2718,14 @@ function render(){
     NX_ENV.setCoachHomes(P.key,h); render(); });
   document.querySelectorAll('#sessCards [data-fgo]').forEach(b=>b.onclick=()=>{ fView=Number(b.dataset.fgo); showFView(b.classList.contains('nx-fnext')); });
   if($('nxCAuto')) $('nxCAuto').onclick=()=>{ NX_ENV.setCoachHomes(P.key,{}); render(); };
-  if($('nxMEdit')) $('nxMEdit').onclick=()=>{ MEDIT=true; MSEL=null; NX_ENV.rerender(); };
-  if($('nxMDone')) $('nxMDone').onclick=()=>{ MEDIT=false; MSEL=null; NX_ENV.rerender(); };
-  if($('nxMAuto')) $('nxMAuto').onclick=()=>{ MSEL=null; NX_ENV.setPlace(P.key,null); };
+  if($('nxMEdit')) $('nxMEdit').onclick=()=>{ MEDIT=true; MSEL=null; MGSEL=null; NX_ENV.rerender(); };
+  if($('nxMDone')) $('nxMDone').onclick=()=>{ MEDIT=false; MSEL=null; MGSEL=null; NX_ENV.rerender(); };
+  if($('nxMAuto')) $('nxMAuto').onclick=()=>{ MSEL=null; MGSEL=null; NX_ENV.setPlace(P.key,null); };
+  document.querySelectorAll('#sessCards [data-gt]').forEach(b=>b.onclick=()=>{ if(!MGSEL||!P._gt) return; const M=MGSEL;
+    const cur=(P._gt[(M.game?'p':'s')+M.st+':'+M.gi]||[]).slice(), k=b.dataset.gt;
+    const nx=cur.includes(k)?cur.filter(x=>x!==k):cur.concat(k); if(!nx.length) return;   /* minst én type */
+    NX_ENV.setPlace(P.key,pl=>{ const f=M.game?'pgtype':'gtype', id=M.game?M.st:(P.felles?'felles':P.picks[M.st].id);
+      pl[f]=pl[f]||{}; pl[f][id]=pl[f][id]||{}; pl[f][id][M.gi]=GT_ORDER.filter(x=>nx.includes(x)); }); });
   if(P._medit) mapEdit(P);
   if($('nxAuto')) $('nxAuto').onclick=()=>NX_ENV.clearOverride(P.key);
   if($('nxFAuto')) $('nxFAuto').onclick=()=>NX_ENV.setFelles(P.key,null);
@@ -2706,7 +2745,8 @@ function mapEdit(P){
       const q=toSvg(svg,ev); drag={g,x0:q.x,y0:q.y,dx:0,dy:0,moved:false}; try{ svg.setPointerCapture(ev.pointerId); }catch(e){} });
     svg.addEventListener('pointermove',ev=>{ if(!drag) return; const q=toSvg(svg,ev); drag.dx=q.x-drag.x0; drag.dy=q.y-drag.y0;
       if(Math.abs(drag.dx)+Math.abs(drag.dy)>4) drag.moved=true; drag.g.setAttribute('transform',`translate(${drag.dx} ${drag.dy})`); });
-    const end=()=>{ if(!drag) return; const d=drag; drag=null; if(!d.moved){ d.g.removeAttribute('transform'); return; } dragged=true; setTimeout(()=>dragged=false,50);
+    const end=()=>{ if(!drag) return; const d=drag; drag=null; if(!d.moved){ d.g.removeAttribute('transform');
+        const M={game,st:Number(d.g.dataset.st),gi:Number(d.g.dataset.g)}; MGSEL=MGSEL&&MGSEL.game===M.game&&MGSEL.st===M.st&&MGSEL.gi===M.gi?null:M; MSEL=null; NX_ENV.rerender(); return; } dragged=true; setTimeout(()=>dragged=false,50);
       const i=Number(d.g.dataset.st), gi=Number(d.g.dataset.g), r=game?(P.pitchRects||[])[i]:(P.fits||[])[i]; if(!r) return;
       const cl=v=>Math.max(-0.1,Math.min(1.1,v)), fx=cl(((Number(d.g.dataset.x)+d.dx)/u-r.x)/r.w), fy=cl(((Number(d.g.dataset.y)+d.dy)/u-r.y)/r.h);
       NX_ENV.setPlace(P.key,pl=>{ const k=game?'pgoals':'goals', id=game?i:keyOf(i); pl[k]=pl[k]||{}; pl[k][id]=pl[k][id]||{}; pl[k][id][gi]=[Math.round(fx*1000)/1000,Math.round(fy*1000)/1000]; }); };
@@ -2720,7 +2760,7 @@ function mapEdit(P){
       const q=toSvg(svg,ev), mx=q.x/u, my=q.y/u, N=P.picks.length;
       const i=(P.fits||[]).findIndex(f=>f&&mx>=f.x-1&&mx<=f.x+f.w+1&&my>=f.y-1&&my<=f.y+f.h+1); if(i<0||i>=N) return;
       if(MSEL===null||MSEL===i){ MSEL=MSEL===i?null:i; NX_ENV.rerender(); return; }
-      const ids=P.picks.map(e=>e.id); [ids[MSEL],ids[i]]=[ids[i],ids[MSEL]]; MSEL=null;
+      const ids=P.picks.map(e=>e.id); [ids[MSEL],ids[i]]=[ids[i],ids[MSEL]]; MSEL=null; MGSEL=null;
       NX_ENV.setPlace(P.key,pl=>{ pl.order=ids; pl.flip=P.flip; }); });
   });
 }
@@ -3541,7 +3581,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
    nye ting som korte linjer, feil samlet under «Retting av feil». Nyeste versjon først.
    Etter en oppdatering vises et banner én gang per telefon; knappen «Nytt» ligger alltid øverst. */
 (function(){
-/*WN_LOG_START*/const WN_LOG=[{"v": "v95", "date": "", "nytt": [], "feil": 0, "admin": ["Dagens økt: «Flytt og snu» på oversiktskartet – bytt plass på øvelsene, snu felt og spillbaner (↻) og dra mål dit du vil. Gjelder hele perioden. «Tilbake til automatisk» fjerner det."]}, {"v": "", "date": "2026-11-01", "nytt": ["Opprop: «Nullstill gruppene» fjerner dagens grupper og «kom sent». Oppmøtet blir stående, og du kan dele inn på nytt.", "Treningene er på torsdager fra 5. november.", "Dagens økt: velg bane for øvelsene og for spillet (sted og hel/halv/kvart). Kartet, feltene, stasjonskortene og spillbanene tilpasser seg plassen.", "Opprop: knappen «Lim inn fra Spond» er fjernet. Se heller i Spond hvem som ikke kommer, og trykk dem bort i oppropet før trening.", "Dagens økt: blir stasjonsfeltene under halvparten av anbefalt størrelse fordi banen er for liten, kommer en advarsel med forslag om større del av banen.", "Dagens økt: stasjonene og spillet ligger nå i samme kart med knappene «Stasjoner» og «Spill» øverst, som ved felles øvelser.", "«Vis lagene» og «Vis gruppene» får plass på skjermen uten å bla: kartet krymper, så lagene og knappen alltid synes.", "Spill på halv bane: målene står over og under på kartet, og banene fyller hver sin firedel (ca. 30 × 23 m med 4 baner).", "Nytt: «Slik gjør du» i «Opprop» og «Dagens økt» viser hele prosessen steg for steg – fra «Jeg lager gruppene i dag» til «Vis lagene» – som øving med oppdiktede spillere. Ingenting lagres. «Hjelp» og «Vis meg» i «Hva er nytt» gjør det samme.", "Lagene: ingen «Innbytter»-merke ved navnene. Er det flere enn 5 på et lag eller ulikt antall, står det under lagene hvordan dere bytter – eller at én kan være joker."], "feil": 0, "show": {"Opprop: «Nullstill gruppene» fjerner dagens grupper og «kom sent». Oppmøtet blir stående, og du kan dele inn på nytt.": "nullstill", "Dagens økt: velg bane for øvelsene og for spillet (sted og hel/halv/kvart). Kartet, feltene, stasjonskortene og spillbanene tilpasser seg plassen.": "baner", "Dagens økt: stasjonene og spillet ligger nå i samme kart med knappene «Stasjoner» og «Spill» øverst, som ved felles øvelser.": "kart-knapper", "«Vis lagene» og «Vis gruppene» får plass på skjermen uten å bla: kartet krymper, så lagene og knappen alltid synes.": "vis-lagene", "Spill på halv bane: målene står over og under på kartet, og banene fyller hver sin firedel (ca. 30 × 23 m med 4 baner).": "kart-spill", "Nytt: «Slik gjør du» i «Opprop» og «Dagens økt» viser hele prosessen steg for steg – fra «Jeg lager gruppene i dag» til «Vis lagene» – som øving med oppdiktede spillere. Ingenting lagres. «Hjelp» og «Vis meg» i «Hva er nytt» gjør det samme.": "prosess", "Lagene: ingen «Innbytter»-merke ved navnene. Er det flere enn 5 på et lag eller ulikt antall, står det under lagene hvordan dere bytter – eller at én kan være joker.": "vis-lagene"}}, {"v": "", "date": "2026-10-30", "nytt": ["Spill: ingen joker lenger. Alle står i lagslistene, og ved oddetall får det ene laget én spiller mer (f.eks. 5 mot 4).", "Ny fane «Opprop»: alle spillerne i én liste. Trykk på navnet til den som ikke er her – navnet blir stående, og ingenting flytter seg mens du roper opp.", "«Ferdig – del inn i grupper» låser gruppene og viser dem én om gangen med kartet: gruppens felt er markert, navnene står med stor skrift. «Vis gruppene» står over gruppelisten i «Dagens økt».", "Kommer noen for sent: trykk på navnet i oppropet. En stor beskjed i gruppens farge viser hvilken gruppe, hvor og hvem som er trener – med kartet. Ingen andre flyttes.", "«Vis lagene» i spilldelen: én bane om gangen med banen markert på kartet, «Lag 1 · med vest» og «Lag 2 · uten vest» med stor skrift, og innbytterne merket."], "feil": 2, "show": {"Spill: ingen joker lenger. Alle står i lagslistene, og ved oddetall får det ene laget én spiller mer (f.eks. 5 mot 4).": "vis-lagene", "Ny fane «Opprop»: alle spillerne i én liste. Trykk på navnet til den som ikke er her – navnet blir stående, og ingenting flytter seg mens du roper opp.": "opprop-liste", "«Ferdig – del inn i grupper» låser gruppene og viser dem én om gangen med kartet: gruppens felt er markert, navnene står med stor skrift. «Vis gruppene» står over gruppelisten i «Dagens økt».": "opprop-ferdig", "Kommer noen for sent: trykk på navnet i oppropet. En stor beskjed i gruppens farge viser hvilken gruppe, hvor og hvem som er trener – med kartet. Ingen andre flyttes.": "sen", "«Vis lagene» i spilldelen: én bane om gangen med banen markert på kartet, «Lag 1 · med vest» og «Lag 2 · uten vest» med stor skrift, og innbytterne merket.": "vis-lagene"}}, {"v": "", "date": "2026-10-26", "nytt": ["«Komme til avslutning»: alle stasjonskortene har «Vis øvelsen».", "Ny øvelse i «Komme til avslutning»: «Vegg og skudd».", "«2 mot 1 mot mål» går i én kø, med samme rotasjon som de andre 2 mot 1-øvelsene.", "Fra Høst B brukes høyst 2 ekte mål (5er eller 7er) per trening. De andre stasjonene bruker kjeglemål.", "Grupper: «Lås gruppene» når du har ropt dem opp. Kommer noen senere, får bare den spilleren en gruppe, og ingen andre flyttes.", "Oversiktskartet: etiketten ved hver stasjon viser også hvor mange baller stasjonen trenger, med et lite fotball-ikon.", "Færre baller: spill bruker 2 baller per kamp (én i spill, én hos treneren), og køøvelser bruker 3.", "Grupper: knappen «Kopier oppsett» er fjernet. Alle ser gruppene i appen.", "Spill: ett mål i hver ende av banen i stedet for fire kjeglemål. Kjeglemål er nå 5 m brede."], "feil": 3, "admin": ["Årshjul: «Planlegg» på hver periode viser treningene i perioden slik de blir, og du kan bytte øvelser på forhånd.", "Årshjul: nytt antall baller gjelder fra neste periode. Perioden dere er i beholder stasjonene sine."], "show": {"Oversiktskartet: etiketten ved hver stasjon viser også hvor mange baller stasjonen trenger, med et lite fotball-ikon.": "kart-st", "Spill: ett mål i hver ende av banen i stedet for fire kjeglemål. Kjeglemål er nå 5 m brede.": "kart-spill"}}, {"v": "", "date": "2026-10-20", "nytt": ["Felles øvelser: kartet viser én øvelse om gangen. Trykk «Neste: øvelse 2» for å se hva som settes ut i drikkepausen.", "Felles øvelser: alle feltene er like store.", "To nye øvelser i «Spille oss fremover»: «Haien» og «Trafikklys». De kan velges som øvelse 1 i felles øvelser.", "Felles øvelser: spill er del 3 i oversiktskartet, etter øvelse 1 og 2. Trykk på navnet for å gå til stasjonskortet.", "Spill: maks 5 mot 5 og så store baner som mulig. Appen viser hvem som spiller på hvilken bane og hvem som er på lag sammen.", "Spill: hver bane har sin trener. Trenerne fordeles automatisk.", "Felles øvelser: trenerne bytter felt for hver trening, så alle får alle nivåene."], "feil": 1}, {"v": "", "date": "2026-10-13", "nytt": ["Begge 2 mot 1-øvelsene går i én kø, med fast rekkefølge for hvem som blir forsvarer.", "Treningene endrer seg gjennom temaet: de to første har spill på stasjonene, deretter kortere stasjoner og spill (75 min) eller felles øvelser for alle gruppene (60 min).", "Drikkepause etter hver andre stasjon.", "Kjeglepakker: appen lager pakkelisten selv og viser den ved hver stasjon på kartet.", "Ryddigere tidsplan: rigg på 10 minutter, og hvor lenge hver del varer står i et farget merke til høyre.", "«Vis øvelsen»: stasjonskortene i «Spille oss fremover» viser øvelsen som en animasjon.", "Samme farger på alle kort: blå angriper, rød forsvarer, gul joker/keeper/vegg og svart trener.", "«Hva er nytt»: her ser du hva som er endret i appen.", "Hver trener beholder øvelsen sin gjennom hele perioden, også når det kommer færre barn. Den som lager gruppene kan bytte trener på en stasjon."], "feil": 6, "admin": ["Felles øvelser: «2 mot 1 – Waves» kan velges sammen med «Før ballen over linja»."]}, {"v": "", "date": "2026-10-06", "nytt": [], "feil": 0, "admin": ["Importer et tidligere lagoppsett, så appen unngår å sette de samme spillerne sammen igjen."]}, {"v": "", "date": "2026-10-05", "nytt": ["Oppmøtet gjelder neste trening og nullstilles dagen etter, også for trenerne.", "Trenerne beholder stasjonen sin gjennom hele temaperioden."], "feil": 0}, {"v": "", "date": "2026-10-04", "nytt": ["1-ere står alltid foran 1½ – både når gruppene lages og når noen er borte.", "Flest spillere på de største banene.", "«Spill på stasjonene», flaten målt til 49,7 × 31,5 m, og tre nye øvelser for «Spille oss fremover».", "En øvelse du bytter, blir stående på samme stasjonsnummer.", "Samme øvelse kan ikke lenger havne på to stasjoner etter flere bytter."], "feil": 0}, {"v": "", "date": "2026-10-03", "nytt": ["Faste grupper med hele stallen, utjevning når noen er borte, og valg av trenere.", "Smartere utjevning: spillere flyttes via gruppene imellom, så hver havner nærmere sitt eget nivå."], "feil": 0, "admin": ["Delen for administrator på hjelpesiden vises bare når administratoren er logget inn.", "Knapp for å forkorte etternavn. Innliming fra Spond kjenner fortsatt igjen fullt navn."]}, {"v": "", "date": "2026-10-02", "nytt": ["Appen ligger på nett, og alle trenerne ser det samme uten egen konto.", "Én trener har ansvaret for å lage gruppene hver trening («Jeg lager gruppene i dag»).", "Brukerinstruksjonen «Slik bruker du appen» og en hjelp-knapp øverst til høyre.", "Ny tidsplan: 5 min rigg, stasjoner på minst 6 min, drikkepause, spill og samling uten minutter."], "feil": 0}];/*WN_LOG_END*/
+/*WN_LOG_START*/const WN_LOG=[{"v": "v95", "date": "", "nytt": [], "feil": 0, "admin": ["Dagens økt: «Flytt og snu» på oversiktskartet – bytt plass på øvelsene, snu felt og spillbaner (↻) og dra mål dit du vil. Gjelder hele perioden. «Tilbake til automatisk» fjerner det.", "Dagens økt: i «Flytt og snu» trykker du på et mål og velger type – kjeglemål, lite mål/Bazooka eller 5er/7er-mål. Velg flere hvis flere fungerer. Kartet, kjeglepakken og stasjonskortet viser det du har valgt."]}, {"v": "", "date": "2026-11-01", "nytt": ["Opprop: «Nullstill gruppene» fjerner dagens grupper og «kom sent». Oppmøtet blir stående, og du kan dele inn på nytt.", "Treningene er på torsdager fra 5. november.", "Dagens økt: velg bane for øvelsene og for spillet (sted og hel/halv/kvart). Kartet, feltene, stasjonskortene og spillbanene tilpasser seg plassen.", "Opprop: knappen «Lim inn fra Spond» er fjernet. Se heller i Spond hvem som ikke kommer, og trykk dem bort i oppropet før trening.", "Dagens økt: blir stasjonsfeltene under halvparten av anbefalt størrelse fordi banen er for liten, kommer en advarsel med forslag om større del av banen.", "Dagens økt: stasjonene og spillet ligger nå i samme kart med knappene «Stasjoner» og «Spill» øverst, som ved felles øvelser.", "«Vis lagene» og «Vis gruppene» får plass på skjermen uten å bla: kartet krymper, så lagene og knappen alltid synes.", "Spill på halv bane: målene står over og under på kartet, og banene fyller hver sin firedel (ca. 30 × 23 m med 4 baner).", "Nytt: «Slik gjør du» i «Opprop» og «Dagens økt» viser hele prosessen steg for steg – fra «Jeg lager gruppene i dag» til «Vis lagene» – som øving med oppdiktede spillere. Ingenting lagres. «Hjelp» og «Vis meg» i «Hva er nytt» gjør det samme.", "Lagene: ingen «Innbytter»-merke ved navnene. Er det flere enn 5 på et lag eller ulikt antall, står det under lagene hvordan dere bytter – eller at én kan være joker."], "feil": 0, "show": {"Opprop: «Nullstill gruppene» fjerner dagens grupper og «kom sent». Oppmøtet blir stående, og du kan dele inn på nytt.": "nullstill", "Dagens økt: velg bane for øvelsene og for spillet (sted og hel/halv/kvart). Kartet, feltene, stasjonskortene og spillbanene tilpasser seg plassen.": "baner", "Dagens økt: stasjonene og spillet ligger nå i samme kart med knappene «Stasjoner» og «Spill» øverst, som ved felles øvelser.": "kart-knapper", "«Vis lagene» og «Vis gruppene» får plass på skjermen uten å bla: kartet krymper, så lagene og knappen alltid synes.": "vis-lagene", "Spill på halv bane: målene står over og under på kartet, og banene fyller hver sin firedel (ca. 30 × 23 m med 4 baner).": "kart-spill", "Nytt: «Slik gjør du» i «Opprop» og «Dagens økt» viser hele prosessen steg for steg – fra «Jeg lager gruppene i dag» til «Vis lagene» – som øving med oppdiktede spillere. Ingenting lagres. «Hjelp» og «Vis meg» i «Hva er nytt» gjør det samme.": "prosess", "Lagene: ingen «Innbytter»-merke ved navnene. Er det flere enn 5 på et lag eller ulikt antall, står det under lagene hvordan dere bytter – eller at én kan være joker.": "vis-lagene"}}, {"v": "", "date": "2026-10-30", "nytt": ["Spill: ingen joker lenger. Alle står i lagslistene, og ved oddetall får det ene laget én spiller mer (f.eks. 5 mot 4).", "Ny fane «Opprop»: alle spillerne i én liste. Trykk på navnet til den som ikke er her – navnet blir stående, og ingenting flytter seg mens du roper opp.", "«Ferdig – del inn i grupper» låser gruppene og viser dem én om gangen med kartet: gruppens felt er markert, navnene står med stor skrift. «Vis gruppene» står over gruppelisten i «Dagens økt».", "Kommer noen for sent: trykk på navnet i oppropet. En stor beskjed i gruppens farge viser hvilken gruppe, hvor og hvem som er trener – med kartet. Ingen andre flyttes.", "«Vis lagene» i spilldelen: én bane om gangen med banen markert på kartet, «Lag 1 · med vest» og «Lag 2 · uten vest» med stor skrift, og innbytterne merket."], "feil": 2, "show": {"Spill: ingen joker lenger. Alle står i lagslistene, og ved oddetall får det ene laget én spiller mer (f.eks. 5 mot 4).": "vis-lagene", "Ny fane «Opprop»: alle spillerne i én liste. Trykk på navnet til den som ikke er her – navnet blir stående, og ingenting flytter seg mens du roper opp.": "opprop-liste", "«Ferdig – del inn i grupper» låser gruppene og viser dem én om gangen med kartet: gruppens felt er markert, navnene står med stor skrift. «Vis gruppene» står over gruppelisten i «Dagens økt».": "opprop-ferdig", "Kommer noen for sent: trykk på navnet i oppropet. En stor beskjed i gruppens farge viser hvilken gruppe, hvor og hvem som er trener – med kartet. Ingen andre flyttes.": "sen", "«Vis lagene» i spilldelen: én bane om gangen med banen markert på kartet, «Lag 1 · med vest» og «Lag 2 · uten vest» med stor skrift, og innbytterne merket.": "vis-lagene"}}, {"v": "", "date": "2026-10-26", "nytt": ["«Komme til avslutning»: alle stasjonskortene har «Vis øvelsen».", "Ny øvelse i «Komme til avslutning»: «Vegg og skudd».", "«2 mot 1 mot mål» går i én kø, med samme rotasjon som de andre 2 mot 1-øvelsene.", "Fra Høst B brukes høyst 2 ekte mål (5er eller 7er) per trening. De andre stasjonene bruker kjeglemål.", "Grupper: «Lås gruppene» når du har ropt dem opp. Kommer noen senere, får bare den spilleren en gruppe, og ingen andre flyttes.", "Oversiktskartet: etiketten ved hver stasjon viser også hvor mange baller stasjonen trenger, med et lite fotball-ikon.", "Færre baller: spill bruker 2 baller per kamp (én i spill, én hos treneren), og køøvelser bruker 3.", "Grupper: knappen «Kopier oppsett» er fjernet. Alle ser gruppene i appen.", "Spill: ett mål i hver ende av banen i stedet for fire kjeglemål. Kjeglemål er nå 5 m brede."], "feil": 3, "admin": ["Årshjul: «Planlegg» på hver periode viser treningene i perioden slik de blir, og du kan bytte øvelser på forhånd.", "Årshjul: nytt antall baller gjelder fra neste periode. Perioden dere er i beholder stasjonene sine."], "show": {"Oversiktskartet: etiketten ved hver stasjon viser også hvor mange baller stasjonen trenger, med et lite fotball-ikon.": "kart-st", "Spill: ett mål i hver ende av banen i stedet for fire kjeglemål. Kjeglemål er nå 5 m brede.": "kart-spill"}}, {"v": "", "date": "2026-10-20", "nytt": ["Felles øvelser: kartet viser én øvelse om gangen. Trykk «Neste: øvelse 2» for å se hva som settes ut i drikkepausen.", "Felles øvelser: alle feltene er like store.", "To nye øvelser i «Spille oss fremover»: «Haien» og «Trafikklys». De kan velges som øvelse 1 i felles øvelser.", "Felles øvelser: spill er del 3 i oversiktskartet, etter øvelse 1 og 2. Trykk på navnet for å gå til stasjonskortet.", "Spill: maks 5 mot 5 og så store baner som mulig. Appen viser hvem som spiller på hvilken bane og hvem som er på lag sammen.", "Spill: hver bane har sin trener. Trenerne fordeles automatisk.", "Felles øvelser: trenerne bytter felt for hver trening, så alle får alle nivåene."], "feil": 1}, {"v": "", "date": "2026-10-13", "nytt": ["Begge 2 mot 1-øvelsene går i én kø, med fast rekkefølge for hvem som blir forsvarer.", "Treningene endrer seg gjennom temaet: de to første har spill på stasjonene, deretter kortere stasjoner og spill (75 min) eller felles øvelser for alle gruppene (60 min).", "Drikkepause etter hver andre stasjon.", "Kjeglepakker: appen lager pakkelisten selv og viser den ved hver stasjon på kartet.", "Ryddigere tidsplan: rigg på 10 minutter, og hvor lenge hver del varer står i et farget merke til høyre.", "«Vis øvelsen»: stasjonskortene i «Spille oss fremover» viser øvelsen som en animasjon.", "Samme farger på alle kort: blå angriper, rød forsvarer, gul joker/keeper/vegg og svart trener.", "«Hva er nytt»: her ser du hva som er endret i appen.", "Hver trener beholder øvelsen sin gjennom hele perioden, også når det kommer færre barn. Den som lager gruppene kan bytte trener på en stasjon."], "feil": 6, "admin": ["Felles øvelser: «2 mot 1 – Waves» kan velges sammen med «Før ballen over linja»."]}, {"v": "", "date": "2026-10-06", "nytt": [], "feil": 0, "admin": ["Importer et tidligere lagoppsett, så appen unngår å sette de samme spillerne sammen igjen."]}, {"v": "", "date": "2026-10-05", "nytt": ["Oppmøtet gjelder neste trening og nullstilles dagen etter, også for trenerne.", "Trenerne beholder stasjonen sin gjennom hele temaperioden."], "feil": 0}, {"v": "", "date": "2026-10-04", "nytt": ["1-ere står alltid foran 1½ – både når gruppene lages og når noen er borte.", "Flest spillere på de største banene.", "«Spill på stasjonene», flaten målt til 49,7 × 31,5 m, og tre nye øvelser for «Spille oss fremover».", "En øvelse du bytter, blir stående på samme stasjonsnummer.", "Samme øvelse kan ikke lenger havne på to stasjoner etter flere bytter."], "feil": 0}, {"v": "", "date": "2026-10-03", "nytt": ["Faste grupper med hele stallen, utjevning når noen er borte, og valg av trenere.", "Smartere utjevning: spillere flyttes via gruppene imellom, så hver havner nærmere sitt eget nivå."], "feil": 0, "admin": ["Delen for administrator på hjelpesiden vises bare når administratoren er logget inn.", "Knapp for å forkorte etternavn. Innliming fra Spond kjenner fortsatt igjen fullt navn."]}, {"v": "", "date": "2026-10-02", "nytt": ["Appen ligger på nett, og alle trenerne ser det samme uten egen konto.", "Én trener har ansvaret for å lage gruppene hver trening («Jeg lager gruppene i dag»).", "Brukerinstruksjonen «Slik bruker du appen» og en hjelp-knapp øverst til høyre.", "Ny tidsplan: 5 min rigg, stasjoner på minst 6 min, drikkepause, spill og samling uten minutter."], "feil": 0}];/*WN_LOG_END*/
 if(!WN_LOG.length) return;
 const KEY='g2018-sett-versjon';
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
