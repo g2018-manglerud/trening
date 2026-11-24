@@ -3055,6 +3055,11 @@ function ikSchedule(base,T,pitches,R,once,fair){   /* fair: de som har spilt min
 }
 /* Øvelsen for laget som står over: en øvelse fra perioden uten motspillere og med mål (skudd), ellers den som trenger minst plass. */
 function ikSitCands(P){ return (P.picksFull||P.picks||[]).filter(e=>e&&isStation(e)&&layoutOf(e)!=='none'); }
+/* Alle stasjonsøvelser til valget (v98): temaet nå først, så de andre temaene. */
+function ikSitAll(P){ const all=ALL().filter(e=>isStation(e)&&!isGame(e)), th=[P.T].concat(THEMES.filter(t=>t!==P.T)).filter(Boolean);
+  const grp=th.map(t=>({t,list:all.filter(e=>e.theme===t)})).filter(g=>g.list.length);
+  const rest=all.filter(e=>!th.includes(e.theme)); if(rest.length) grp.push({t:'Andre øvelser',list:rest});
+  return grp; }
 function ikSit(P,cfg){
   const all=ikSitCands(P); if(cfg.sit){ const e=exA(cfg.sit); if(e) return e; }
   const area=e=>{ const m=String(e.area||'').match(/(\d+)\s*[×x]\s*(\d+)/); return m?+m[1]*+m[2]:300; };
@@ -3164,7 +3169,7 @@ function renderIntern(P,head){
     ${cfg.src==='lag'?(H.length?`<label class="hint" style="display:flex;flex-direction:column;gap:3px">Lagoppsett fra «Lag»<select id="ikSaved">${H.slice().reverse().map(e=>`<option value="${e.id}" ${I.entry&&I.entry.id===e.id?'selected':''}>${esc(NX_ENV.entryLabel(e))} · ${e.teams.length} lag</option>`).join('')}</select></label>`:'<div class="note">Det finnes ingen lagrede lagoppsett ennå. Lag lagene under «Lag» først, eller velg jevne lag.</div>')
       :`<div class="row" style="gap:8px;align-items:center"><span class="hint"><b>Antall lag:</b></span>${seg('ikN',[['','Auto ('+ikAutoT(NX_ENV.presentIds().length)+')'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6']],cfg.n||'')}</div>`}
     <div class="row" style="gap:8px;align-items:center"><span class="hint"><b>Kamplengde:</b></span>${seg('ikLen',[['','Auto ('+autoLen+' min)'],['8','8'],['10','10'],['12','12'],['15','15'],['20','20']],cfg.len||'')}</div>
-    ${ikSitCands(P).length>1?`<label class="hint" style="display:flex;flex-direction:column;gap:3px">Øvelse for laget som står over<select id="ikSit">${ikSitCands(P).map(e=>`<option value="${e.id}" ${I.sit===e?'selected':''}>${esc(e.title)}</option>`).join('')}</select></label>`:''}
+    <label class="hint" style="display:flex;flex-direction:column;gap:3px">Øvelse for laget som står over<select id="ikSit"><option value="" ${cfg.sit?'':'selected'}>Automatisk: ${esc(I.sit&&!cfg.sit?I.sit.title:ikSit(P,Object.assign({},cfg,{sit:null}))?.title||'')}</option>${ikSitAll(P).map(g=>`<optgroup label="${esc(g.t===P.T?g.t+' (temaet nå)':g.t)}">${g.list.map(e=>`<option value="${e.id}" ${cfg.sit===e.id?'selected':''}>${esc(e.title)}</option>`).join('')}</optgroup>`).join('')}</select></label>
     <span class="hint">${{lag:'Lagene fra et lagret oppsett. De som er borte, er strøket. Kampene: alle mot alle.',jevne:'Appen lager like sterke lag av dem som er her, når oppropet er ferdig. Kampene: alle mot alle.',niva:'Spillere på samme nivå på samme lag (Grønn = sterkest). Kampene: mest mot lagene nærmest i nivå.',manuell:'Appen lager jevne lag når oppropet er ferdig. Etterpå kan du bytte spillere: trykk på én og så på en annen.'}[cfg.src]}${I.locked?' Endrer du lagvalget, må lagene deles inn på nytt i oppropet.':''}</span></div>`:'';
   /* Tidsplan */
   let t=5; const rows=[`<tr><td class="tm">${at(0)}–${at(5)}</td><td><b>Rigg og opprop:</b> barna går til lagfargen sin, trenerne setter opp to baner og feltet i midten.</td></tr>`];
@@ -3199,7 +3204,7 @@ function renderIntern(P,head){
   if($('ikSaved')) $('ikSaved').onchange=e=>setC(c=>{ c.saved=e.target.value; });
   document.querySelectorAll('#ikN button').forEach(b=>b.onclick=()=>setC(c=>{ if(b.dataset.v) c.n=Number(b.dataset.v); else delete c.n; }));
   document.querySelectorAll('#ikLen button').forEach(b=>b.onclick=()=>NX_ENV.setInternCfg(w.date,c=>{ if(b.dataset.v) c.len=Number(b.dataset.v); else delete c.len; },true));
-  if($('ikSit')) $('ikSit').onchange=e=>NX_ENV.setInternCfg(w.date,c=>{ c.sit=e.target.value; },true);
+  if($('ikSit')) $('ikSit').onchange=e=>NX_ENV.setInternCfg(w.date,c=>{ if(e.target.value) c.sit=e.target.value; else delete c.sit; },true);
   if($('ikCallBtn')) $('ikCallBtn').onclick=()=>NX_ENV.openCall('i');
   document.querySelectorAll('#nxFmt button').forEach(b=>b.onclick=()=>{NX_ENV.setFormat(P.w.date,b.dataset.v);});
   document.querySelectorAll('#nxMin button').forEach(b=>b.onclick=()=>{ if(PREV){ PREVMIN=Number(b.dataset.m); NX_ENV.rerender(); return; } NX_ENV.setMinutes(Number(b.dataset.m));});
