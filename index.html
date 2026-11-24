@@ -113,6 +113,13 @@ textarea{min-height:120px;resize:vertical}
 .roll .rfoot{padding:8px 12px 12px;font-size:13px;color:var(--muted)}
 /* v97: tekst på kartet skal ikke ta imot trykk – ellers treffer man ikke målet under navnet */
 svg[aria-label^="Baneoversikt"] text{pointer-events:none}
+.ikchip{display:inline-block;font-weight:700;font-size:13px;border-radius:999px;padding:3px 10px;min-width:54px;text-align:center}
+.ikrd{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:4px}
+.ikm{display:inline-flex;align-items:center;gap:5px}
+.ikm .hint{font-size:12px;margin-right:2px}
+.ikvs{font-weight:700;color:var(--muted)}
+.ikctl{display:flex;flex-direction:column;gap:8px;padding:10px 0 4px}
+.ikh{margin:4px 0 8px;font-size:22px}
 .nxclkw{position:sticky;top:6px;z-index:20}
 .nxclkw:empty{display:none}
 .nxclk{background:#17211B;color:#fff;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
@@ -705,8 +712,8 @@ let dirty=false, writing=false, saveTimer=null, changeNo=0;
 
 /* To dokumenter: team/main (spillere, nivåer, lag, innstillinger – bare eieren skriver)
    og session/current (oppmøte, grupper, historikk – eieren og trenere med Bidragsyter-tilgang skriver). */
-const sessPart=()=>({present:S.present||{},presentDay:S.presentDay||null,groups:S.groups||null,groupLevels:S.groupLevels||null,history:S.history||[],coachPresent:S.coachPresent||{},coachHomes:S.coachHomes||null,lead:S.lead||null,lock:S.lock||null,venue:S.venue||null,added:S.added||[],clock:S.clock||null});
-const mainPart=()=>{const o=Object.assign({},S);delete o.present;delete o.groups;delete o.history;delete o.coachPresent;delete o.coachHomes;delete o.lead;delete o.presentDay;delete o.groupLevels;delete o.lock;delete o.venue;delete o.added;delete o.clock;return o;};
+const sessPart=()=>({present:S.present||{},presentDay:S.presentDay||null,groups:S.groups||null,groupLevels:S.groupLevels||null,history:S.history||[],coachPresent:S.coachPresent||{},coachHomes:S.coachHomes||null,lead:S.lead||null,lock:S.lock||null,venue:S.venue||null,added:S.added||[],clock:S.clock||null,intern:S.intern||null});
+const mainPart=()=>{const o=Object.assign({},S);delete o.present;delete o.groups;delete o.history;delete o.coachPresent;delete o.coachHomes;delete o.lead;delete o.presentDay;delete o.groupLevels;delete o.lock;delete o.venue;delete o.added;delete o.clock;delete o.intern;return o;};
 function save(){
   if(DEMO) return;   /* øving i «Slik gjør du»: ingenting lagres */
   syncCurrent();
@@ -732,7 +739,7 @@ async function flushShared(){
   }
   writing=false;
 }
-function applySess(d){ S.lock=d.lock||null; S.venue=d.venue||null; S.groupLevels=d.groupLevels||null; S.presentDay=d.presentDay||null; S.lead=d.lead||null; S.coachPresent=d.coachPresent||{}; S.coachHomes=d.coachHomes||null; S.present=d.present||{}; S.groups=d.groups||null; S.history=Array.isArray(d.history)?d.history:[]; S.added=Array.isArray(d.added)?d.added:[]; S.clock=d.clock||null; mergeAdded(); }
+function applySess(d){ S.lock=d.lock||null; S.venue=d.venue||null; S.groupLevels=d.groupLevels||null; S.presentDay=d.presentDay||null; S.lead=d.lead||null; S.coachPresent=d.coachPresent||{}; S.coachHomes=d.coachHomes||null; S.present=d.present||{}; S.groups=d.groups||null; S.history=Array.isArray(d.history)?d.history:[]; S.added=Array.isArray(d.added)?d.added:[]; S.clock=d.clock||null; S.intern=d.intern||null; mergeAdded(); }
 /* Spillere lagt til i oppropet av en trener (v95): vises med en gang for alle, og flyttes inn i spillerlisten når administrator åpner appen. */
 function mergeAdded(){
   const A=S.added||[]; if(!A.length) return;
@@ -879,19 +886,24 @@ function renderAttendance(){
   $('regenBtn').textContent=confirmKey==='regen'?'Bekreft: lag nye grupper':'Lag nye grupper';
 }
 /* ---------- Opprop (v92): én lang liste. Gruppene vises ikke her, så ingenting flytter seg mens du roper opp. ---------- */
+/* Internkamper i dag (v98) */
+function ikMode(){ try{ const P=NX.plan(); return P.mode==='intern'&&P.w.date===S.presentDay; }catch(e){ return false; } }
+function ikOn(){ try{ const P=NX.plan(); return P.mode==='intern'&&P.intern.locked; }catch(e){ return false; } }
+const ikName=n=>String(n).trim().split(/\s+/).pop();
 function lockNow(){ if(!S.groups) generate(false); const t=todayGroups(); if(!t) return;
   S.lock={day:S.presentDay,used:t.eff.map(g=>g.i),groups:S.groups.map((x,i)=>{const e=t.eff.find(g=>g.i===i);return e?e.ids.slice():[];}),late:[]}; sel=null; }
 function groupIndexOf(id){ const T=todayGroups(); return T?T.eff.findIndex(g=>g.ids.includes(id)):-1; }
 function renderRoll(){
   const box=$('rollCard'); if(!box) return;
-  const L=lockOn(), late=new Set((L&&L.late)||[]), T=L?todayGroups():null, gi={};
+  const IK=ikMode(), IKon=IK&&ikOn();   /* internkamper i dag (v98): lagene i stedet for gruppene */
+  const L=IK?null:lockOn(), late=new Set(IKon?(NX.plan().intern.late||[]):((L&&L.late)||[])), T=L?todayGroups():null, gi={};
   if(T) T.eff.forEach((g,k)=>g.ids.forEach(id=>gi[id]=k));
   const n=presentPlayers().length;
   box.innerHTML=`<div class="bib"><span class="nm">Opprop</span><span class="st">${n} av ${S.players.length}</span></div>`;
   const ul=document.createElement('ul');
   S.players.slice().sort((a,b)=>a.name.localeCompare(b.name,'nb')).forEach(p=>{
     const li=document.createElement('li'), b=document.createElement('button'); b.type='button';
-    const away=!S.present[p.id], k=gi[p.id], bib=k!==undefined?BIBS[k%BIBS.length]:null;
+    const away=!S.present[p.id], k=gi[p.id], it=IKon?NX.internTeamOf(p.id):null, bib=it?{c:it.bib.c,n:ikName(it.name)}:k!==undefined?BIBS[k%BIBS.length]:null;
     b.className=away?'absent':'';
     b.innerHTML=`<span>${CAN?dot(p.level):''}<span class="pn">${esc(p.name)}</span></span>`+(away?'<span class="away">borte</span>'
       :bib?`<span class="rg"><i style="background:${bib.c}"></i>${esc(bib.n)}${late.has(p.id)?' <span class="late-tag">kom sent</span>':''}${(S.added||[]).some(a=>a.id===p.id)?' <span class="new-tag">ny</span>':''}</span>`:(S.added||[]).some(a=>a.id===p.id)?'<span class="new-tag">ny</span>':'');
@@ -912,11 +924,21 @@ function renderRoll(){
       $('rollAddNo').onclick=()=>{ rollAdd=false; renderRoll(); }; }
     else $('rollAddBtn').onclick=()=>{ rollAdd=true; rollAddMsg=''; renderRoll(); const i=$('rollAddName'); if(i) i.focus(); }; }
   const f=document.createElement('div'); f.className='rfoot';
-  f.textContent=!CANS?'':L?'Gruppene er delt inn. Kommer noen senere, trykk på navnet – appen sier hvilken gruppe. Går noen hjem, trykk på navnet.'
+  f.textContent=!CANS?'':IK?(IKon?'Lagene er delt inn. Kommer noen senere, trykk på navnet – appen sier hvilket lag.':'Internkamper i dag. Trykk på navnet til den som ikke er her. Lagene lages når du er ferdig.'):L?'Gruppene er delt inn. Kommer noen senere, trykk på navnet – appen sier hvilken gruppe. Går noen hjem, trykk på navnet.'
     :'Trykk på navnet til den som ikke er her. Navnet blir stående, og gruppene lages først når du er ferdig.';
   box.appendChild(f);
   const d=$('rollDone'); d.innerHTML='';
   if(!CANS) return;
+  if(IK){ /* internkamper (v98) */
+    if(!IKon){ const b=document.createElement('button'); b.type='button'; b.className='btn primary donebtn'; b.id='rollDoneBtn';
+      b.textContent=`Ferdig – del inn i lag (${n} spillere)`; b.disabled=n===0;
+      b.onclick=()=>{ NX.internLock(); confirmKey=null; render(); openCall(0,'i'); }; d.appendChild(b); }
+    else { const o=document.createElement('div'); o.className='ok'; o.innerHTML='<b>✓ Lagene er delt inn for i dag.</b> ';
+      const g=document.createElement('button'); g.type='button'; g.className='btn small primary'; g.textContent='Vis lagene'; g.onclick=()=>openCall(0,'i');
+      o.appendChild(document.createElement('br')); o.appendChild(g); d.appendChild(o);
+      const z=document.createElement('button'); z.type='button'; z.className='linkbtn'; z.id='rollReset'; z.textContent='Nullstill lagene'; z.style.alignSelf='flex-start'; z.style.marginTop='14px';
+      z.onclick=()=>{ $('resetSheet').classList.remove('hidden'); $('resetNo').focus(); }; d.appendChild(z); }
+    return; }
   if(!L){ const b=document.createElement('button'); b.type='button'; b.className='btn primary donebtn'; b.id='rollDoneBtn';
     b.textContent=`Ferdig – del inn i grupper (${n} spillere)`; b.disabled=n===0;
     b.onclick=()=>{ lockNow(); save(); confirmKey=null; render(); openCall(0); };
@@ -940,7 +962,7 @@ function renderRoll(){
 let callIx=0, callData=null, callKind='g';
 function openCall(start,kind){
   callKind=kind||'g';
-  callData=callKind==='l'?NX.teamCall():NX.groupCall(); if(!callData||!callData.length){ flash(callKind==='l'?'Lagene kommer når gruppene er laget.':'Gruppene er ikke laget ennå.','note'); return; }
+  callData=callKind==='i'?NX.internCall():callKind==='l'?NX.teamCall():NX.groupCall(); if(!callData||!callData.length){ flash(callKind!=='g'?'Lagene kommer når oppropet er ferdig.':'Gruppene er ikke laget ennå.','note'); return; }
   callIx=Math.max(0,Math.min(start||0,callData.length-1)); drawCall();
   const v=$('callView'); v.classList.remove('hidden'); requestAnimationFrame(()=>v.classList.add('show')); document.body.style.overflow='hidden';
 }
@@ -952,6 +974,7 @@ function closeCall(toMap){
 }
 function drawCall(){
   if(callKind==='l') return drawTeams();
+  if(callKind==='i') return drawIntern();
   const g=callData[callIx], n=callData.length, last=callIx===n-1;
   const names=g.ids.map(id=>({id,nm:(byId(id)||{}).name})).filter(x=>x.nm).sort((a,b)=>a.nm.localeCompare(b.nm,'nb'));
   const late=new Set(((lockOn()||{}).late)||[]);
@@ -961,6 +984,21 @@ function drawCall(){
     <ul class="callv-names">${names.map(x=>`<li>${esc(x.nm)}${late.has(x.id)?' <span class="late-tag">kom sent</span>':''}</li>`).join('')}</ul>
     <div class="callv-dots" aria-hidden="true">${callData.map((c,i)=>`<i class="${i===callIx?'on':''}" style="background:${c.bib.c}"></i>`).join('')}</div>
     <div class="callv-nav">${callIx?'<button type="button" class="btn" id="callPrev">← Forrige</button>':''}<button type="button" class="btn primary" id="callNext">${last?(window.G2018_CLOCK&&G2018_CLOCK.canStart()?'Start stasjonene →':'Ferdig – til Dagens økt'):'Neste gruppe →'}</button></div>`;
+  $('callX').onclick=()=>closeCall(false);
+  if($('callPrev')) $('callPrev').onclick=()=>{ callIx--; drawCall(); $('callView').scrollTop=0; };
+  $('callNext').onclick=()=>{ if(last){ if(window.G2018_CLOCK&&G2018_CLOCK.canStart()) G2018_CLOCK.start(); closeCall(true); } else { callIx++; drawCall(); $('callView').scrollTop=0; } };
+  $('callNext').focus({preventScroll:true});
+}
+/* «Vis lagene» for internkamper (v98): ett lag om gangen, med navnene og hvor laget starter. */
+function drawIntern(){
+  const g=callData[callIx], n=callData.length, last=callIx===n-1, late=new Set(g.late||[]);
+  const names=g.ids.map(id=>({id,nm:(byId(id)||{}).name})).filter(x=>x.nm).sort((a,b)=>a.nm.localeCompare(b.nm,'nb'));
+  $('callIn').innerHTML=`<div class="callv-top"><span id="callTitle">Lag ${callIx+1} av ${n}</span><button type="button" class="btn small" id="callX">Lukk</button></div>
+    <div class="callv-band" style="background:${g.bib.c};color:${g.bib.t}"><div class="g">${esc(ikName(g.name)).toUpperCase()}</div><div class="w">${esc(g.txt)}${g.coach.length?' · '+g.coach.map(esc).join(' og '):''} · ${names.length} spillere</div></div>
+    <div class="callv-map">${g.svg}</div>
+    <ul class="callv-names">${names.map(x=>`<li>${esc(x.nm)}${late.has(x.id)?' <span class="late-tag">kom sent</span>':''}</li>`).join('')}</ul>
+    <div class="callv-dots" aria-hidden="true">${callData.map((c,i)=>`<i class="${i===callIx?'on':''}" style="background:${c.bib.c}"></i>`).join('')}</div>
+    <div class="callv-nav">${callIx?'<button type="button" class="btn" id="callPrev">← Forrige</button>':''}<button type="button" class="btn primary" id="callNext">${last?(window.G2018_CLOCK&&G2018_CLOCK.canStart()?'Start kampene →':'Ferdig – til Dagens økt'):'Neste lag →'}</button></div>`;
   $('callX').onclick=()=>closeCall(false);
   if($('callPrev')) $('callPrev').onclick=()=>{ callIx--; drawCall(); $('callView').scrollTop=0; };
   $('callNext').onclick=()=>{ if(last){ if(window.G2018_CLOCK&&G2018_CLOCK.canStart()) G2018_CLOCK.start(); closeCall(true); } else { callIx++; drawCall(); $('callView').scrollTop=0; } };
@@ -1019,17 +1057,20 @@ function addRollPlayer(raw){
   const gn=id=>{ const k=groupIndexOf(id); return k<0?'':BIBS[k%BIBS.length].n.toLowerCase()+' gruppe'; };
   rollAddMsg=`<b>${esc(name)}</b> er lagt til${gn(p.id)?' i '+gn(p.id):''}.`+(moved?` <b>${esc(byId(moved).name)}</b> er flyttet opp til ${gn(moved)}, så gruppene blir like store.`:'')+(CAN?' Nivået kan endres under «Spillere».':'');
   render();
-  if(lockOn()) showLate(p.id);   /* gruppene er allerede ropt opp: vis hvor den nye skal */
+  if(ikMode()?ikOn():lockOn()) showLate(p.id);   /* gruppene er allerede ropt opp: vis hvor den nye skal */
 }
 function toggleRoll(id){
   if(!CANS) return; rollAddMsg=''; rollNew=null;
   const wasAway=!S.present[id];
   if(wasAway) S.present[id]=true; else delete S.present[id];
   save(); render();
-  if(wasAway&&lockOn()) showLate(id);
+  if(wasAway&&(ikMode()?ikOn():lockOn())) showLate(id);
 }
 /* Stor beskjed i gruppens farge når noen kommer etter at gruppene er delt inn. */
 function showLate(id){
+  if(ikMode()){ const W=NX.internLate(id); if(!W) return; const col=$('lateCol'); col.style.background=W.bib.c; col.style.color=W.bib.t;
+    col.innerHTML=`<div class="late-nm">${esc((byId(id)||{}).name||'')}</div><div class="late-ar">går til</div><div class="late-g">${esc(ikName(W.name)).toUpperCase()}</div><div class="late-w">${esc(W.txt)}</div>`;
+    $('lateSheet').classList.remove('hidden'); $('lateOk').focus(); return; }
   const k=groupIndexOf(id); if(k<0) return; const bib=BIBS[k%BIBS.length], w=NX.whereOf(k);
   const col=$('lateCol'); col.style.background=bib.c; col.style.color=bib.t;
   col.innerHTML=`<div class="late-nm">${esc((byId(id)||{}).name||'')}</div><div class="late-ar">går til</div><div class="late-g">${esc(bib.n).toUpperCase()} GRUPPE</div>`+
@@ -1363,6 +1404,23 @@ function makeTeams(includeCurrent){
     if(sc<bestScore) bestScore=sc; else { best[b][j]=best[a][i]; best[a][i]=x; }
   }
   T.current=best.map(g=>g.map(p=>p.id)); T.currentNames=names;
+}
+/* Jevne lag av en liste spillere (v98, internkamper). Samme vurdering som «Lag lagene». */
+function evenTeams(ids,G){
+  const ps=ids.map(byId).filter(Boolean), n=ps.length; if(!n) return []; G=Math.max(1,Math.min(G,n));
+  const pw=teamPairWeights(false), avg=ps.reduce((a,p)=>a+p.level,0)/n, on=new Set(ids);
+  const kids=new Set((S.teams.coaches||[]).map(c=>c.child).filter(id=>id&&on.has(id))), mK=kids.size/G;
+  const keyOf=l=>Number.isInteger(l)?l+(Math.random()*2-1)*0.3:l+(Math.random()-0.5);
+  const score=teams=>{ let s=0; for(const g of teams){ if(!g.length) continue; const mean=g.reduce((a,p)=>a+p.level,0)/g.length; s+=300*(mean-avg)**2;
+    const c=g.filter(p=>kids.has(p.id)).length; s+=120*(c-mK)**2;
+    for(let i=0;i<g.length;i++)for(let j=i+1;j<g.length;j++){const a=g[i].id,b=g[j].id;s+=pw.get(a<b?a+'|'+b:b+'|'+a)||0;} } return s; };
+  let best=null,bs=Infinity;
+  for(let it=0;it<400;it++){ const keyed=ps.map(p=>({p,k:keyOf(p.level)})).sort((a,b)=>a.k-b.k), teams=Array.from({length:G},()=>[]), order=[...Array(G).keys()].sort(()=>Math.random()-0.5);
+    keyed.forEach((x,i)=>{const r=Math.floor(i/G),pos=i%G;teams[r%2?order[G-1-pos]:order[pos]].push(x.p);}); const sc=score(teams); if(sc<bs){bs=sc;best=teams;} }
+  if(G>1) for(let it=0;it<2000;it++){ const a=Math.floor(Math.random()*G); let b=Math.floor(Math.random()*(G-1)); if(b>=a)b++;
+    if(!best[a].length||!best[b].length) continue; const i=Math.floor(Math.random()*best[a].length), j=Math.floor(Math.random()*best[b].length);
+    const x=best[a][i]; best[a][i]=best[b][j]; best[b][j]=x; const sc=score(best); if(sc<bs) bs=sc; else { best[b][j]=best[a][i]; best[a][i]=x; } }
+  return best.map(g=>g.map(p=>p.id));
 }
 const coachName=id=>(S.teams.coaches.find(c=>c.id===id)||{}).name;
 /* Trenere følger barnet sitt. */
@@ -1930,7 +1988,11 @@ function sizing(){
 
 /* Velg stasjonsøvelser: temaet først, så øvelser som også passer temaet, så resten.
    Varierer fra uke til uke, holder seg innenfor antall baller og blander kategoriene. */
-function plan(){
+/* v98: internkamper legges oppå den vanlige planen (samme tema, baner, starttid). */
+function plan(){ const P=planBase(); const fo=(NX_ENV.wheelState().formats||{})[P.w.date];
+  if(fo==='intern'&&!P.testMode&&!DEMO){   /* «Slik gjør du»-øvingen viser det vanlige formatet */ P.mode='intern'; P.fmtAuto=false; P.rig=5; P.intern=ikPlan(P); P.stMin=P.intern.len; }
+  return P; }
+function planBase(){
   const w=when(), sz=sizing(), set=NX_ENV.settings();
   const VEN=NX_ENV.venue(w.date); useField(VEN.st);
   let balls=Number.isInteger(set.balls)?set.balls:DEF_BALLS;
@@ -2695,12 +2757,13 @@ function render(){
       <h2 style="font-size:26px">${esc(dTxt(w.date,{weekday:'long',day:'numeric',month:'long'}).replace(/^./,c=>c.toUpperCase()))}</h2></div>
       <div class="seg" id="nxMin" role="group" aria-label="Lengde på treningen">${[60,75].map(m=>`<button type="button" data-m="${m}" aria-pressed="${P.total===m}">${m} min</button>`).join('')}</div></div>
     ${NX_ENV.canEdit&&NX_ENV.modeTest?`<div class="row noprint" style="gap:8px"><span class="hint"><b>Spilloppsett:</b></span><div class="seg" id="nxMode" role="group" aria-label="Spilloppsett">${[['fire','4 små baner – Test'],['lange','Lange baner – Test'],['stasjon','Spillstasjon – Test'],['stspill','Vanlig (format under) – Publisert']].map(([v,t])=>`<button type="button" data-v="${v}" aria-pressed="${v==='stspill'?!P.testMode:P.mode===v}">${t}</button>`).join('')}</div></div>`:''}
-    ${NX_ENV.canEdit&&NX_ENV.setFormat&&!P.testMode?`<div class="row noprint" style="gap:8px"><span class="hint"><b>${esc(NX_ENV.fmtLabel||'Format')}:</b></span><div class="seg" id="nxFmt" role="group" aria-label="Format">${[['auto','Automatisk'],['stspill','Spill på stasjonene'],['kort','Stasjoner, så spill'],['felles','Felles øvelser']].map(([v,t])=>`<button type="button" data-v="${v}" aria-pressed="${v==='auto'?P.fmtAuto:!P.fmtAuto&&P.mode===v}">${t}</button>`).join('')}</div>
+    ${NX_ENV.canEdit&&NX_ENV.setFormat&&!P.testMode?`<div class="row noprint" style="gap:8px"><span class="hint"><b>${esc(NX_ENV.fmtLabel||'Format')}:</b></span><div class="seg" id="nxFmt" style="flex-wrap:wrap" role="group" aria-label="Format">${[['auto','Automatisk'],['stspill','Spill på stasjonene'],['kort','Stasjoner, så spill'],['felles','Felles øvelser'],['intern','Internkamper']].map(([v,t])=>`<button type="button" data-v="${v}" aria-pressed="${v==='auto'?P.fmtAuto:!P.fmtAuto&&P.mode===v}">${t}</button>`).join('')}</div>
       <span class="hint">${P.fmtAuto?`Automatisk: ${w.n?`trening ${w.i+1} i perioden gir `:''}«${{kort:'Stasjoner, så spill',felles:'Felles øvelser'}[P.autoFmt]||'Spill på stasjonene'}». På 75 min: stasjoner (8 min) og så spill hele perioden. På 60 min: trening 1–2 spill på stasjonene, fra trening 3 to felles øvelser og så spill.${P.autoFmt==='felles'&&P.mode!=='felles'?' Temaet har ikke to øvelser med samme kjegler, så det blir stasjoner og spill.':''}`:'Valgt manuelt for denne treningen.'}</span></div>`:''}
     ${venueRow(P)}
     <div class="row" style="gap:8px">${P.T?`<span class="tag" style="background:${TCOL[w.t]}">${esc(P.T)}</span>`:'<span class="tag">Mye spill</span>'}
       <span class="hint">${w.p?esc(w.p.name)+(w.n?` · trening ${w.i+1} av ${w.n}`:''):''}</span></div>
     ${P.T?`<div><b>Si til barna:</b> ${esc(TFOCUS[w.t])}</div>`:''}`;
+  if(P.mode==='intern') return renderIntern(P,head);
   let t=0; const rows=[]; P._tg=null;
   rows.push(`<tr><td class="tm">${range(0,P.rig)}</td><td><b>Rigg:</b> Hovedtrener deler barna inn i grupper, mens hjelpetrenerne setter opp stasjonene.</td></tr>`);
   t=P.rig;
@@ -2945,11 +3008,221 @@ function teamCall(){
     return {pi,letter:'ABCD'[pi],fmt:P.gameFmt(tm.n),coach:tm.coach,t:tm.t,bench:tm.bench,nm:P._nm,svg:svg.replace(/<\/svg>$/,hl+'</svg>')}; });
 }
 function whereOf(k){ const P=plan(); const CP=P._cp||(P._cp=coachPlan(P)); return {felles:!!P.felles,st:k+1,coach:(CP.byStation||[])[k]||null}; }
+/* ---------- Internkamper (v98) ----------
+   Et eget format for én trening: lagene spiller mot hverandre på to baner, og laget som står over har en øvelse i midten.
+   Lagene: fra et lagret oppsett i «Lag», jevne lag, nivålag eller manuelt (jevne lag som administrator kan endre).
+   Oppsettet (lagvalg, antall lag, kamplengde, øvelse i midten) lagres per dato i årshjulet (wheel.intern[dato]).
+   Lagene for dagen lages i oppropet («Ferdig – del inn i lag») og ligger i økta (S.intern = {day, src, teams:[{name,ids}], late}). */
+const IK_COLS=['Grønn','Blå','Gul','Hvit','Rød','Lilla'];
+const IK_SRC=[['lag','Fra «Lag»'],['jevne','Jevne lag'],['niva','Nivålag'],['manuell','Manuelt']];
+const ikBib=n=>BIBS.find(b=>String(n).toLowerCase().includes(b.n.toLowerCase()))||BIBS[0];
+const ikShort=n=>String(n).trim().split(/\s+/).pop();
+/* Med to baner passer 4–5 lag best (høyst ett lag står over). 6 lag kan velges selv. */
+const ikAutoT=n=>n<=16?2:n<=24?3:n<=32?4:5;
+let IKSEL=null;   /* manuelt: spilleren som er valgt for bytte */
+function ikCfg(w){ const c=((NX_ENV.wheelState().intern||{})[w.date])||{}; return {src:IK_SRC.some(x=>x[0]===c.src)?c.src:'jevne',saved:c.saved||null,n:Number(c.n)||null,len:Number(c.len)||null,sit:c.sit||null}; }
+function ikSaved(cfg){ const H=NX_ENV.savedTeams(); return H.find(x=>x.id===cfg.saved)||H[H.length-1]||null; }
+/* Alle mot alle: «sirkelmetoden» gir runder der ingen spiller to kamper samtidig. */
+function ikCircle(T){
+  /* 5 lag: samme rekkefølge som arket til MS-cup (lag 1 står over sist). */
+  if(T===5) return [[0,1],[2,3],[0,2],[1,4],[0,3],[2,4],[0,4],[1,3],[1,2],[3,4]];
+  const t=[...Array(T).keys()]; if(T%2) t.push(null); const n=t.length, out=[];
+  for(let r=0;r<n-1;r++){ for(let i=0;i<n/2;i++){ const a=t[i], b=t[n-1-i]; if(a!==null&&b!==null) out.push(a<b?[a,b]:[b,a]); } t.splice(1,0,t.pop()); }
+  return out; }
+/* Nivålag (lag 1 = sterkest): mest kamper mot lagene nærmest i nivå. */
+function ikNiva(T){ const out=[]; for(let d=1;d<=Math.min(2,T-1);d++) for(let a=0;a+d<T;a++) out.push([a,a+d]); return out; }
+/* Fordeler kampene på runder med høyst «pitches» kamper, ingen lag to ganger i samme runde. De som har spilt minst, går først.
+   Når alle kampene er spilt, begynner listen på nytt. once: stopp når listen er brukt opp én gang. */
+function ikSchedule(base,T,pitches,R,once,fair){   /* fair: de som har spilt minst først (nivålag); ellers rekkefølgen i listen */
+  const games=new Array(T).fill(0), rounds=[]; let pool=base.map((m,i)=>({m,i})), used=0, gen=0;
+  for(let r=0;r<R;r++){
+    if(!pool.length){ if(once) break; pool=base.map((m,i)=>({m,i})); }
+    /* Første kombinasjon (i prioritert rekkefølge: de som har spilt minst først) som fyller flest baner. */
+    const take=list=>{ const L=list.slice().sort((x,y)=>(fair?(games[x.m[0]]+games[x.m[1]])-(games[y.m[0]]+games[y.m[1]]):0)||x.i-y.i); let best=[];
+      const rec=(st,cur,bz)=>{ if(cur.length>best.length) best=cur.slice(); if(cur.length===pitches) return true;
+        for(let i=st;i<L.length;i++){ const c=L[i]; if(bz.has(c.m[0])||bz.has(c.m[1])) continue; cur.push(c); bz.add(c.m[0]); bz.add(c.m[1]);
+          if(rec(i+1,cur,bz)) return true; cur.pop(); bz.delete(c.m[0]); bz.delete(c.m[1]); } return false; };
+      rec(0,[],new Set()); return best; };
+    let ms=take(pool);
+    /* Blir det ledige baner (f.eks. nivålag), brukes også kamper fra en ny runde av listen. */
+    if(ms.length<pitches&&!once&&r>0){ gen++; const more=pool.concat(base.map((m,i)=>({m,i:i+1000*gen}))), ms2=take(more); if(ms2.length>ms.length){ pool=more; ms=ms2; } }
+    const busy=new Set(); ms.forEach(c=>{ busy.add(c.m[0]); busy.add(c.m[1]); });
+    pool=pool.filter(c=>!ms.includes(c)); used+=ms.length;
+    ms.forEach(c=>{ games[c.m[0]]++; games[c.m[1]]++; });
+    rounds.push({ms:ms.map(c=>c.m),rest:[...Array(T).keys()].filter(t=>!busy.has(t))});
+  }
+  return rounds;
+}
+/* Øvelsen for laget som står over: en øvelse fra perioden uten motspillere og med mål (skudd), ellers den som trenger minst plass. */
+function ikSitCands(P){ return (P.picksFull||P.picks||[]).filter(e=>e&&isStation(e)&&layoutOf(e)!=='none'); }
+function ikSit(P,cfg){
+  const all=ikSitCands(P); if(cfg.sit){ const e=exA(cfg.sit); if(e) return e; }
+  const area=e=>{ const m=String(e.area||'').match(/(\d+)\s*[×x]\s*(\d+)/); return m?+m[1]*+m[2]:300; };
+  const solo=all.filter(e=>e.cat==='Sjef over ballen'&&e.goal&&e.goal!=='ingen');
+  return (solo.length?solo:all).slice().sort((a,b)=>area(a)-area(b))[0]||(P.picks||[])[0]||null;
+}
+/* Lagene for dagen. Låst (laget i oppropet) eller foreløpige. */
+function ikTeams(P,cfg){
+  const S0=NX_ENV.intern(), w=P.w;
+  if(S0&&S0.day===w.date&&Array.isArray(S0.teams)&&S0.teams.length) return {locked:true,teams:S0.teams.map(t=>({name:t.name,ids:t.ids.slice()})),late:S0.late||[],src:S0.src};
+  if(cfg.src==='lag'){ const e=ikSaved(cfg); if(e) return {locked:false,teams:e.teams.map((g,i)=>({name:(e.names||[])[i]||('Lag '+(i+1)),ids:g.slice()})),late:[],src:'lag',entry:e}; }
+  const T=cfg.n||ikAutoT(NX_ENV.presentIds().length);
+  return {locked:false,teams:IK_COLS.slice(0,T).map(n=>({name:n,ids:[]})),late:[],src:cfg.src,empty:true};
+}
+function ikPlan(P){
+  const cfg=ikCfg(P.w), tm=ikTeams(P,cfg), T=tm.teams.length, pitches=2;
+  const pres=id=>NX_ENV.isPresent(id);
+  tm.teams.forEach(t=>t.on=t.ids.filter(id=>pres(id)&&byId(id)));
+  const A=P.total-5-6, base=(cfg.src==='niva'?ikNiva:ikCircle)(T);
+  const Rc=Math.max(1,ikSchedule(ikCircle(T),T,pitches,99,true).length);   /* kamplengden regnes ut fra alle mot alle */
+  const len=cfg.len||Math.max(8,Math.min(15,Math.floor((A-(Rc-1))/Rc)));
+  const R=Math.max(1,Math.floor((A+1)/(len+1)));
+  const rounds=ikSchedule(base,T,pitches,R,false,cfg.src==='niva');
+  const names=tm.teams.map(t=>t.name);
+  /* Spillere som er her, men ikke på noe lag (f.eks. ikke med i det lagrede oppsettet) */
+  const inT=new Set(tm.teams.flatMap(t=>t.ids)), loose=NX_ENV.presentIds().filter(id=>!inT.has(id));
+  return {cfg,locked:tm.locked,teams:tm.teams,late:tm.late,entry:tm.entry,empty:!!tm.empty,T,len,R,rounds,names,loose,sit:ikSit(P,cfg),A,pitches};
+}
+/* Låser dagens lag (kalles fra oppropet). */
+function ikLock(){
+  const P=plan(); if(P.mode!=='intern') return false; const cfg=P.intern.cfg, pres=NX_ENV.presentIds();
+  let teams;
+  if(cfg.src==='lag'&&ikSaved(cfg)){ const e=ikSaved(cfg); teams=e.teams.map((g,i)=>({name:(e.names||[])[i]||('Lag '+(i+1)),ids:g.slice()}));
+    /* de som er her, men ikke på noe lag: på laget med færrest til stede */
+    const inT=new Set(teams.flatMap(t=>t.ids));
+    pres.filter(id=>!inT.has(id)).forEach(id=>{ const t=teams.slice().sort((a,b)=>a.ids.filter(NX_ENV.isPresent).length-b.ids.filter(NX_ENV.isPresent).length)[0]; t.ids.push(id); }); }
+  else {
+    const T=Math.min(cfg.n||ikAutoT(pres.length),Math.max(1,pres.length));
+    let split;
+    if(cfg.src==='niva'){ const s=pres.slice().sort((a,b)=>((byId(a)||{}).level||2)-((byId(b)||{}).level||2)||String((byId(a)||{}).name).localeCompare(String((byId(b)||{}).name),'nb'));
+      split=[]; let k=0; for(let t=0;t<T;t++){ const n=Math.floor(s.length/T)+(t<s.length%T?1:0); split.push(s.slice(k,k+n)); k+=n; } }
+    else split=NX_ENV.evenTeams(pres,T);
+    teams=split.map((ids,i)=>({name:IK_COLS[i]||('Lag '+(i+1)),ids}));
+  }
+  NX_ENV.setInternS(()=>({day:P.w.date,src:cfg.src,teams,late:[]}));
+  return true;
+}
+/* Kommer noen etter at lagene er laget: laget med færrest til stede (eget lag hvis spilleren står på et). */
+function ikLate(id){
+  const P=plan(); if(P.mode!=='intern'||!P.intern.locked) return null;
+  let k=P.intern.teams.findIndex(t=>t.ids.includes(id));
+  if(k<0){ k=P.intern.teams.map((t,i)=>i).sort((a,b)=>P.intern.teams[a].on.length-P.intern.teams[b].on.length||a-b)[0];
+    NX_ENV.setInternS(s=>{ s.teams[k].ids.push(id); s.late=(s.late||[]).concat(id); return s; }); }
+  return ikWhere(k);
+}
+/* Hvor laget er nå (eller starter): bane og motstander, eller øvelsen i midten. */
+function ikWhere(k){
+  const P=plan(), I=P.intern; if(!I||k<0) return null; const t=I.teams[k];
+  const K=clockState(P), now=Date.now(); let r=0; const going=!!(K&&now>=K.T0);
+  if(going){ const segs=K.segs.filter(x=>x.k==='im'); const j=segs.findIndex(x=>now<x.b); r=j<0?I.rounds.length-1:j; }
+  const rd=I.rounds[r]||I.rounds[0]; if(!rd) return {name:t.name,bib:ikBib(t.name),txt:''};
+  const mi=rd.ms.findIndex(m=>m.includes(k));
+  const txt=mi<0?`Står over${going?' nå':' først'}: «${I.sit?I.sit.title:'øvelsen i midten'}»`:`${going?'Spiller nå':'Første kamp'} på bane ${mi+1} mot ${ikShort(I.names[rd.ms[mi][0]===k?rd.ms[mi][1]:rd.ms[mi][0]])}`;
+  return {name:t.name,bib:ikBib(t.name),txt,k};
+}
+function ikTeamOf(id){ const P=plan(); if(P.mode!=='intern'||!P.intern.locked) return null; const k=P.intern.teams.findIndex(t=>t.ids.includes(id)); return k<0?null:{k,name:P.intern.teams[k].name,bib:ikBib(P.intern.teams[k].name)}; }
+/* Kartet: to baner og et felt i midten for laget som står over. hl = bane (0/1) eller 'mid' som markeres. */
+function ikDrawing(P,hl){
+  useField(P.fieldSp||P.fieldSt); let s=fieldBase(); OBS=null;
+  const I=P.intern, along=FW>=FH, L=along?FW:FH, Bw=along?FH:FW;
+  const mid=Math.min(16,Math.max(10,L*0.24)), pl=(L-mid)/2;
+  const cellsP=[0,1].map(i=>along?{x:i?pl+mid:0,y:0,w:pl,h:Bw}:{x:0,y:i?pl+mid:0,w:Bw,h:pl});
+  const midC=along?{x:pl,y:0,w:mid,h:Bw}:{x:0,y:pl,w:Bw,h:mid};
+  const rects=[];
+  cellsP.forEach((c,i)=>{ const pw=Math.min(c.w-2,c.w>c.h?32:22), ph=Math.min(c.h-2,c.w>c.h?22:32);
+    const r={x:c.x+(c.w-pw)/2,y:c.y+(c.h-ph)/2,w:pw,h:ph}; rects.push(r); const X=r.x*U,Y=r.y*U,W=r.w*U,H=r.h*U, long=W>=H;
+    s+=`<rect x="${X}" y="${Y}" width="${W}" height="${H}" fill="rgba(255,255,255,.13)" stroke="rgba(255,255,255,.75)" stroke-width="1.5" stroke-dasharray="6 5"/>`;
+    [[X,Y],[X+W,Y],[X,Y+H],[X+W,Y+H]].forEach(([x,y])=>s+=bigCone(x,y,'#F07C2A'));
+    (long?[[X,Y+H/2,-1],[X+W,Y+H/2,1]]:[[X+W/2,Y,-1],[X+W/2,Y+H,1]]).forEach(([x,y,sg])=>s+=goal5(x,y,long,sg));
+    s+=`<text x="${X+W/2}" y="${Y+H/2+7}" text-anchor="middle" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="700" font-size="24" fill="#fff" stroke="#1f3d26" stroke-width="3" paint-order="stroke">Bane ${i+1}</text>`;
+    s+=`<text x="${X+W/2}" y="${Y+H/2+26}" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="600" font-size="12" fill="#fff" stroke="#1f3d26" stroke-width="3" paint-order="stroke">${Math.round(r.w)} × ${Math.round(r.h)} m · 5 mot 5</text>`; });
+  if(I.sit){ const f=fit(I.sit,midC); rects.push(f); s+=stationSvg(f,I.sit,'#F2C230',false,{});
+    s+=`<text x="${(f.x+f.w/2)*U}" y="${(f.y)*U-8}" text-anchor="middle" font-family="Barlow,system-ui,sans-serif" font-weight="700" font-size="12" fill="#fff" stroke="#1f3d26" stroke-width="3" paint-order="stroke">Står over</text>`; }
+  P.ikRects=rects;
+  let h='';
+  const r=hl==='mid'?rects[2]:typeof hl==='number'?rects[hl]:null;
+  if(r){ const X=r.x*U,Y=r.y*U,W=r.w*U,H=r.h*U;
+    h=`<path d="M-30,-28 h${FW*U+88} v${FH*U+83} h${-(FW*U+88)} z M${X-8},${Y-8} v${H+16} h${W+16} v${-H-16} z" fill="rgba(255,255,255,.62)" fill-rule="evenodd"/>`+
+      `<rect x="${X-8}" y="${Y-8}" width="${W+16}" height="${H+16}" rx="6" fill="none" stroke="#fff" stroke-width="9"/><rect x="${X-8}" y="${Y-8}" width="${W+16}" height="${H+16}" rx="6" fill="none" stroke="#1F6B46" stroke-width="5"/>`; }
+  return wrapSvg(s+edgeLabels()+h,'Baneoversikt for internkampene');
+}
+const ikChip=(I,k)=>{ const b=ikBib(I.names[k]); return `<span class="ikchip" style="background:${b.c};color:${b.t}${b.n==='Hvit'?';box-shadow:inset 0 0 0 1px #AEB8AC':''}">${esc(ikShort(I.names[k]))}</span>`; };
+function ikTimes(P){ const st=startTimeFor(P.w.date); if(!st) return null; const [h,m]=st.split(':').map(Number); return min=>{ const t=h*60+m+min; return pad2(Math.floor(t/60))+'.'+pad2(t%60); }; }
+/* «Vis lagene» i oppropet: ett lag om gangen. */
+function ikCall(){
+  const P=plan(); if(P.mode!=='intern'||!P.intern.locked) return null; const I=P.intern;
+  return I.teams.map((t,k)=>{ const W=ikWhere(k)||{}, rd=I.rounds[0], mi=rd?rd.ms.findIndex(m=>m.includes(k)):-1;
+    return {k,bib:ikBib(t.name),name:t.name,ids:t.on.slice(),late:I.late,coach:NX_ENV.coachesIn(t.on),txt:W.txt||'',svg:ikDrawing(P,mi<0?'mid':mi)}; });
+}
+function renderIntern(P,head){
+  const I=P.intern, w=P.w, ED=NX_ENV.canEdit, CS=NX_ENV.canSess, cfg=I.cfg, tf=ikTimes(P), at=m=>tf?tf(m):m+'';
+  const H=NX_ENV.savedTeams();
+  const seg=(id,list,cur)=>`<div class="seg" id="${id}" role="group">${list.map(([v,t])=>`<button type="button" data-v="${v}" aria-pressed="${String(cur)===String(v)}">${t}</button>`).join('')}</div>`;
+  const autoLen=Math.max(8,Math.min(15,Math.floor((I.A-(Math.max(1,ikSchedule(ikCircle(I.T),I.T,2,99,true).length)-1))/Math.max(1,ikSchedule(ikCircle(I.T),I.T,2,99,true).length))));
+  const ctl=ED?`<div class="ikctl noprint">
+    <div class="row" style="gap:8px;align-items:center"><span class="hint"><b>Lagene:</b></span>${seg('ikSrc',IK_SRC,cfg.src)}</div>
+    ${cfg.src==='lag'?(H.length?`<label class="hint" style="display:flex;flex-direction:column;gap:3px">Lagoppsett fra «Lag»<select id="ikSaved">${H.slice().reverse().map(e=>`<option value="${e.id}" ${I.entry&&I.entry.id===e.id?'selected':''}>${esc(NX_ENV.entryLabel(e))} · ${e.teams.length} lag</option>`).join('')}</select></label>`:'<div class="note">Det finnes ingen lagrede lagoppsett ennå. Lag lagene under «Lag» først, eller velg jevne lag.</div>')
+      :`<div class="row" style="gap:8px;align-items:center"><span class="hint"><b>Antall lag:</b></span>${seg('ikN',[['','Auto ('+ikAutoT(NX_ENV.presentIds().length)+')'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6']],cfg.n||'')}</div>`}
+    <div class="row" style="gap:8px;align-items:center"><span class="hint"><b>Kamplengde:</b></span>${seg('ikLen',[['','Auto ('+autoLen+' min)'],['8','8'],['10','10'],['12','12'],['15','15'],['20','20']],cfg.len||'')}</div>
+    ${ikSitCands(P).length>1?`<label class="hint" style="display:flex;flex-direction:column;gap:3px">Øvelse for laget som står over<select id="ikSit">${ikSitCands(P).map(e=>`<option value="${e.id}" ${I.sit===e?'selected':''}>${esc(e.title)}</option>`).join('')}</select></label>`:''}
+    <span class="hint">${{lag:'Lagene fra et lagret oppsett. De som er borte, er strøket. Kampene: alle mot alle.',jevne:'Appen lager like sterke lag av dem som er her, når oppropet er ferdig. Kampene: alle mot alle.',niva:'Spillere på samme nivå på samme lag (Grønn = sterkest). Kampene: mest mot lagene nærmest i nivå.',manuell:'Appen lager jevne lag når oppropet er ferdig. Etterpå kan du bytte spillere: trykk på én og så på en annen.'}[cfg.src]}${I.locked?' Endrer du lagvalget, må lagene deles inn på nytt i oppropet.':''}</span></div>`:'';
+  /* Tidsplan */
+  let t=5; const rows=[`<tr><td class="tm">${at(0)}–${at(5)}</td><td><b>Rigg og opprop:</b> barna går til lagfargen sin, trenerne setter opp to baner og feltet i midten.</td></tr>`];
+  I.rounds.forEach((rd,r)=>{ rows.push(`<tr><td class="tm">${at(t)}–${at(t+I.len)}</td><td><b>Runde ${r+1}</b><div class="ikrd">${rd.ms.map((m,i)=>`<span class="ikm"><span class="hint">Bane ${i+1}</span>${ikChip(I,m[0])}<span class="ikvs">–</span>${ikChip(I,m[1])}</span>`).join('')}${rd.rest.length?`<span class="ikm"><span class="hint">Står over</span>${rd.rest.map(k=>ikChip(I,k)).join(' ')}</span>`:''}</div></td></tr>`);
+    t+=I.len+(r<I.rounds.length-1?1:0); });
+  rows.push(`<tr><td class="tm">${at(t)}–${at(P.total)}</td><td>Samling: «Hva var gøy i dag?»</td></tr>`);
+  const games=I.teams.map((x,k)=>I.rounds.filter(rd=>rd.ms.some(m=>m.includes(k))).length), gmin=Math.min(...games), gmax=Math.max(...games);
+  const info=`<div class="hint">${I.T} lag · 2 baner · ${I.R} runder à ${I.len} min, 1 min bytte. Hvert lag spiller ${gmin===gmax?gmin:gmin+'–'+gmax} kamper${I.rounds.some(rd=>rd.rest.length)?' og står over med «'+esc(I.sit?I.sit.title:'øvelsen i midten')+'» mellom':''}.</div>`;
+  if($('nxClockWrap')) $('nxClockWrap').innerHTML=clockHtml(P);
+  $('sessPanel').innerHTML=head+ctl+`<table class="plan"><tbody>${rows.map(planRow).join('')}</tbody></table>`+info+
+    (I.loose.length&&!I.locked&&cfg.src==='lag'?`<div class="hint">${I.loose.length} ${I.loose.length===1?'spiller':'spillere'} er her, men ikke på noe lag (${I.loose.map(id=>esc((byId(id)||{}).name||'')).join(', ')}). De havner på laget med færrest spillere når oppropet er ferdig.</div>`:'');
+  /* Lagene */
+  const sel=IKSEL, manual=cfg.src==='manuell'&&I.locked&&CS;
+  const lateS=new Set(I.late||[]);
+  const cardsT=I.empty?`<div class="note">Lagene lages når oppropet er ferdig («Ferdig – del inn i lag»).</div>`:`<div class="groups">${I.teams.map((tm,k)=>{ const b=ikBib(tm.name), cs=NX_ENV.coachesIn(tm.on);
+      const names=tm.on.slice().sort((x,y)=>String((byId(x)||{}).name).localeCompare(String((byId(y)||{}).name),'nb'));
+      return `<div class="grp"><div class="bib" style="background:${b.c};color:${b.t}${b.n==='Hvit'?';border-bottom:1px solid var(--line)':''}"><span class="nm">${esc(ikShort(tm.name))}</span><span class="st">${tm.on.length} spillere</span></div>
+        ${cs.length?`<div class="coach">Trener: ${cs.map(esc).join(', ')}</div>`:''}
+        <ul>${names.map(id=>`<li><button type="button" data-ikp="${id}" data-ikt="${k}" ${manual?'':'disabled'} class="${sel===id?'selected':''}"><span class="pn">${esc((byId(id)||{}).name||'')}</span>${lateS.has(id)?'<span class="late-tag">kom sent</span>':''}</button></li>`).join('')}</ul>
+        ${manual&&sel&&!tm.ids.includes(sel)?`<div class="foot"><button type="button" class="movehere" data-ikmove="${k}">Flytt hit</button></div>`:''}</div>`; }).join('')}</div>
+      ${manual?'<div class="hint">Bytt spillere: trykk på en spiller og så på en spiller på et annet lag, eller «Flytt hit».</div>':''}`;
+  const legend=`<div class="legend nx-leg"><span>${coneIco('#F07C2A')}Hjørnekjegler</span><span>${goalIco}5er-mål i hver ende</span><span>${coneIco('#F2C230')}Feltet i midten: laget som står over</span></div>`;
+  const fig=`<article class="scard nx-fig" id="nx-fig-st"><div class="hd"><div style="display:flex;flex-direction:column;gap:4px"><div class="kick"><span class="stn">Oversikt</span>${P.T?`<span class="tag">${esc(P.T)}</span>`:''}</div><h3>Internkamper</h3>
+    <div class="meta">${esc(dTxt(w.date,{weekday:'long',day:'numeric',month:'long'}))} · ${esc(fieldLabel(P.fieldSp||P.fieldSt))}</div></div></div>${ikDrawing(P)}${legend}
+    ${I.locked?`<button type="button" class="btn primary noprint" id="ikCallBtn">Vis lagene</button>`:''}</article>`;
+  const sitCard=I.sit?`<div class="cardwrap" id="nx-card-0" style="width:100%">${cardHtml(I.sit,{tag:'Laget som står over',minutes:I.len})}</div>`:'';
+  $('sessCards').innerHTML=`<div class="cardwrap" style="width:100%">${fig}</div><div class="cardwrap" style="width:100%"><h3 class="ikh">Lagene</h3>${cardsT}</div>`+sitCard;
+  clockBind(P);
+  /* Knapper */
+  const setC=fn=>NX_ENV.setInternCfg(w.date,fn);
+  document.querySelectorAll('#ikSrc button').forEach(b=>b.onclick=()=>setC(c=>{ c.src=b.dataset.v; delete c.n; }));
+  if($('ikSaved')) $('ikSaved').onchange=e=>setC(c=>{ c.saved=e.target.value; });
+  document.querySelectorAll('#ikN button').forEach(b=>b.onclick=()=>setC(c=>{ if(b.dataset.v) c.n=Number(b.dataset.v); else delete c.n; }));
+  document.querySelectorAll('#ikLen button').forEach(b=>b.onclick=()=>NX_ENV.setInternCfg(w.date,c=>{ if(b.dataset.v) c.len=Number(b.dataset.v); else delete c.len; },true));
+  if($('ikSit')) $('ikSit').onchange=e=>NX_ENV.setInternCfg(w.date,c=>{ c.sit=e.target.value; },true);
+  if($('ikCallBtn')) $('ikCallBtn').onclick=()=>NX_ENV.openCall('i');
+  document.querySelectorAll('#nxFmt button').forEach(b=>b.onclick=()=>{NX_ENV.setFormat(P.w.date,b.dataset.v);});
+  document.querySelectorAll('#nxMin button').forEach(b=>b.onclick=()=>{ if(PREV){ PREVMIN=Number(b.dataset.m); NX_ENV.rerender(); return; } NX_ENV.setMinutes(Number(b.dataset.m));});
+  { document.querySelectorAll('#sessPanel [data-vp]').forEach(x=>x.onchange=()=>{ const k=x.dataset.vp, f=k==='st'?P.fieldSt:P.fieldSp; NX_ENV.setVenue(k,{place:x.value,part:f.part},P.w.date); });
+    document.querySelectorAll('#sessPanel [data-vk]').forEach(b=>b.onclick=()=>{ const k=b.dataset.vk, f=k==='st'?P.fieldSt:P.fieldSp; NX_ENV.setVenue(k,{place:f.place,part:b.dataset.v},P.w.date); }); }
+  if(manual){
+    document.querySelectorAll('#sessCards [data-ikp]').forEach(b=>b.onclick=()=>{ const id=b.dataset.ikp, k=Number(b.dataset.ikt);
+      if(!IKSEL){ IKSEL=id; NX_ENV.rerender(); return; }
+      if(IKSEL===id){ IKSEL=null; NX_ENV.rerender(); return; }
+      const a=IKSEL; IKSEL=null;
+      NX_ENV.setInternS(s=>{ const ka=s.teams.findIndex(t=>t.ids.includes(a)); if(ka<0||ka===k) return s;
+        s.teams[ka].ids=s.teams[ka].ids.map(x=>x===a?id:x); s.teams[k].ids=s.teams[k].ids.map(x=>x===id?a:x); return s; }); });
+    document.querySelectorAll('#sessCards [data-ikmove]').forEach(b=>b.onclick=()=>{ const k=Number(b.dataset.ikmove), a=IKSEL; IKSEL=null;
+      NX_ENV.setInternS(s=>{ s.teams.forEach(t=>t.ids=t.ids.filter(x=>x!==a)); s.teams[k].ids.push(a); return s; }); });
+  }
+}
+
 /* ---------- Klokka (v97) ---------- */
 const TIME_FROM=[['2026-11-02','16:15']];   /* når treningen starter (hallen fra 5. nov) */
 const startTimeFor=d=>{ let t=null; for(const [f,v] of TIME_FROM) if(String(d).slice(0,10)>=f) t=v; return t; };
 function clockSegs(P){
   const s=[], N=P.picks.length, add=(k,t,m)=>{ if(m>0) s.push({k,t,m}); };
+  if(P.mode==='intern'){ const I=P.intern; I.rounds.forEach((rd,i)=>{ add('im',`Runde ${i+1}: `+rd.ms.map(m=>ikShort(I.names[m[0]])+'–'+ikShort(I.names[m[1]])).join(' · '),I.len); if(i<I.rounds.length-1) add('chg','Bytt kamp',1); }); return s; }
   if(P.mode==='felles'){ add('st','Øvelse 1',P.stMin); add('drk','Drikkepause',P.drink); add('st','Øvelse 2',P.stMin); add('drk','Drikkepause',P.drink); add('sp','Spill',P.gameMin); return s; }
   for(let k=0;k<N;k++){ add('st',`Stasjon – runde ${k+1} av ${N}`,P.stMin);
     if(k<N-1){ const brk=P.onSt&&k%2===1; add(brk?'drk':'chg',brk?'Drikkepause':'Bytt stasjon',brk?P.drink:P.change); } }
@@ -2966,10 +3239,10 @@ function clockState(P){
   let T0=started?mine.st:t0+P.rig*60000;
   if(DEMO){ T0=Date.now()-150000; t0=T0-P.rig*60000; }   /* øving: stasjonene startet for litt siden */
   const end=t0+P.total*60000, segs=clockSegs(P).map(x=>Object.assign({},x)), adds=(mine&&mine.add)||{};
-  const hasGame=segs.some(x=>x.k==='sp'), nst=segs.filter(x=>x.k==='st').length, other=segs.reduce((a,x)=>a+(x.k==='sp'?0:x.m),0);
+  const hasGame=segs.some(x=>x.k==='sp'), isSt=x=>x.k==='st'||x.k==='im', nst=segs.filter(isSt).length, other=segs.reduce((a,x)=>a+(x.k==='sp'?0:x.m),0);
   /* Sen start: tiden tas fra spillet. Blir spillet under 10 min (eller går stasjonene over tiden), kortes alle stasjonene likt, minst 6 min. */
   const room=(end-T0)/60000-other, need=hasGame?10:0;
-  if(room<need-0.5&&nst){ const r=Math.min(Math.max(0,P.stMin-6),Math.ceil((need-room)/nst)); if(r>0) segs.forEach(x=>{ if(x.k==='st') x.m-=r; }); }
+  if(room<need-0.5&&nst){ const r=Math.min(Math.max(0,P.stMin-6),Math.ceil((need-room)/nst)); if(r>0) segs.forEach(x=>{ if(isSt(x)) x.m-=r; }); }
   segs.forEach((x,i)=>{ if(adds[i]) x.m+=adds[i]; });
   if(hasGame){ const used=segs.reduce((a,x)=>a+(x.k==='sp'?0:x.m),0), g=segs.find(x=>x.k==='sp'); g.m=Math.max(0,(end-T0)/60000-used); }
   let t=T0; segs.forEach(x=>{ x.a=t; t+=x.m*60000; x.b=t; });
@@ -2998,8 +3271,9 @@ function clockInner(K){
   const bellB=`<button type="button" id="nxClkBell" class="${bell?'on':''}" aria-pressed="${bell}">🔔 ${bell?'Varsler er på':'Varsle meg'}</button>`;
   let L, sub='', btn='';
   if(now<K.T0){
-    L=`<b>${now<K.t0?'Treningen starter kl. '+hmOf(K.t0):'Rigg og opprop'}</b><span class="nxclk-s">Klokka starter når siste gruppe er ropt opp${K.started?'':' – ellers kl. '+hmOf(K.T0)}.</span>`;
-    if(can&&!K.started&&!DEMO) btn=`<button type="button" id="nxClkStart">Start stasjonene nå</button>`;
+    const IKm=NXCLK.P&&NXCLK.P.mode==='intern';
+    L=`<b>${now<K.t0?'Treningen starter kl. '+hmOf(K.t0):'Rigg og opprop'}</b><span class="nxclk-s">Klokka starter når ${IKm?'siste lag':'siste gruppe'} er ropt opp${K.started?'':' – ellers kl. '+hmOf(K.T0)}.</span>`;
+    if(can&&!K.started&&!DEMO) btn=`<button type="button" id="nxClkStart">${IKm?'Start kampene nå':'Start stasjonene nå'}</button>`;
   } else {
     const i=K.segs.findIndex(x=>now>=x.a&&now<x.b);
     if(i<0){ L=`<b>Ferdig</b><span class="nxclk-s">Samling: «Hva var gøy i dag?»</span>`; }
@@ -3012,11 +3286,11 @@ function clockInner(K){
 }
 function clockTick(){
   const el=document.getElementById('nxClock'); if(!el||!NXCLK.P) return;
-  const K=clockState(NXCLK.P); if(!K){ el.innerHTML=''; return; }
+  const P0=NXCLK.P, K=clockState(NXCLK.P); if(!K){ el.innerHTML=''; return; }
   const key=clockKey(K);
   if(NXCLK.last!==null&&key!==NXCLK.last&&key!=='pre'&&!DEMO){ const i=K.segs.findIndex(x=>Date.now()>=x.a&&Date.now()<x.b), x=K.segs[i], pv=K.segs[i-1];
     /* Ett varsel per bytte: «Bytt stasjon!» når byttet starter (ikke igjen når neste stasjon begynner). */
-    const msg=i<0?'Ferdig – samling':x.k==='chg'?'Bytt stasjon!':x.k==='sp'?'Spill!':x.k==='drk'?x.t:pv&&pv.k==='chg'?null:pv&&pv.k==='drk'?'Neste stasjon!\n'+x.t:x.t;
+    const msg=i<0?'Ferdig – samling':x.k==='im'?x.t.replace(': ','\n'):x.k==='chg'?(P0.mode==='intern'?'Kampslutt!':'Bytt stasjon!'):x.k==='sp'?'Spill!':x.k==='drk'?x.t:pv&&pv.k==='chg'?null:pv&&pv.k==='drk'?'Neste stasjon!\n'+x.t:x.t;
     if(msg) clockAlert(msg); }
   NXCLK.last=key; el.innerHTML=clockInner(K);
 }
@@ -3038,7 +3312,7 @@ window.G2018_CLOCK={
   canStart:()=>{ if(!NX_ENV.canSess) return false; const P=plan(), K=clockState(P); return !!(K&&!K.started&&Date.now()<K.T0+15*60000); },
   start:()=>{ const P=plan(); NX_ENV.setClock(()=>({day:P.w.date,st:Date.now(),add:{}})); }
 };
-return {render,plan,whereOf,groupCall,teamCall,DEF_BALLS,printDoc,renderCoaches,preview:d=>{PREV=d||null;PREVMIN=null;fView=0;},get previewing(){return !!PREV;}};
+return {internLock:ikLock,internLate:ikLate,internTeamOf:ikTeamOf,internCall:ikCall,internWhere:ikWhere,render,plan,whereOf,groupCall,teamCall,DEF_BALLS,printDoc,renderCoaches,preview:d=>{PREV=d||null;PREVMIN=null;fView=0;},get previewing(){return !!PREV;}};
 })();
 
 /* ---------- Baner (v92) ---------- */
@@ -3091,6 +3365,17 @@ const NX_ENV={
     if(!v) delete S.wheel.felles[k]; else S.wheel.felles[k]=v; save(); render(); },
   /* Plassering på kartet (v95): {order, flip, turn, goals, pturn, pgoals} per periode. null = tilbake til automatisk. */
   /* Klokka (v97): {day, st (ms da stasjonene startet), add {punkt: ekstra minutter}} i dagens trening. */
+  /* Internkamper (v98) */
+  intern:()=>S.intern||null,
+  setInternS:fn=>{ if(!CANS) return; S.intern=fn(S.intern?JSON.parse(JSON.stringify(S.intern)):null); save(); render(); },
+  setInternCfg:(d,fn,keep)=>{ if(!CAN) return; if(!S.wheel||typeof S.wheel!=='object') S.wheel={themes:{}}; if(!S.wheel.intern) S.wheel.intern={};
+    const c=Object.assign({},S.wheel.intern[d]||{}); fn(c); S.wheel.intern[d]=c; if(!keep&&S.intern&&S.intern.day===d) S.intern=null; save(); render(); },
+  presentIds:()=>S.players.filter(p=>S.present[p.id]).map(p=>p.id),
+  isPresent:id=>!!S.present[id],
+  savedTeams:()=>(S.teams&&Array.isArray(S.teams.history))?S.teams.history:[],
+  entryLabel:e=>entryLabel(e),
+  coachesIn:ids=>coachesIn(ids),
+  evenTeams:(ids,G)=>evenTeams(ids,G),
   clock:()=>S.clock||null,
   setClock:fn=>{ if(!CANS) return; S.clock=fn(S.clock?JSON.parse(JSON.stringify(S.clock)):null); save(); render(); },
   setPlace:(k,fn)=>{ if(!CAN) return; if(!S.wheel||typeof S.wheel!=='object') S.wheel={themes:{}}; if(!S.wheel.place) S.wheel.place={};
@@ -3279,7 +3564,7 @@ $('pActCancel').onclick=closeAct;
 $('lateOk').onclick=()=>$('lateSheet').classList.add('hidden');
 $('resetNo').onclick=()=>$('resetSheet').classList.add('hidden');
 $('resetSheet').onclick=e=>{ if(e.target===$('resetSheet')) $('resetSheet').classList.add('hidden'); };
-$('resetYes').onclick=()=>{ $('resetSheet').classList.add('hidden'); S.lock=null; confirmKey=null; sel=null; save(); render(); flash('Gruppene er nullstilt. Oppmøtet står. Trykk «Ferdig – del inn i grupper» når du er klar.'); };
+$('resetYes').onclick=()=>{ $('resetSheet').classList.add('hidden'); if(ikMode()){ S.intern=null; confirmKey=null; save(); render(); flash('Lagene er nullstilt. Oppmøtet står. Trykk «Ferdig – del inn i lag» når du er klar.'); return; } S.lock=null; confirmKey=null; sel=null; save(); render(); flash('Gruppene er nullstilt. Oppmøtet står. Trykk «Ferdig – del inn i grupper» når du er klar.'); };
 $('lateSheet').onclick=e=>{ if(e.target===$('lateSheet')) $('lateSheet').classList.add('hidden'); };
 $('pAct').onclick=e=>{ if(e.target===$('pAct')) closeAct(); };
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&actId) closeAct(); if(e.key==='Escape'&&!$('callView').classList.contains('hidden')) closeCall(false); });
@@ -3493,7 +3778,7 @@ function startShared(owner){
     const cur=JSON.parse(JSON.stringify(data)); delete cur.updatedAt;
     if(!validState(cur)) { startSession(); return; }
     cur.lock=S.lock||null; cur.venue=S.venue||null; cur.groupLevels=S.groupLevels||null; cur.presentDay=S.presentDay||null; cur.lead=S.lead||null; cur.coachPresent=S.coachPresent||{}; cur.coachHomes=S.coachHomes||null; cur.present=S.present||{}; cur.groups=S.groups||null; cur.history=Array.isArray(S.history)?S.history:[];
-    cur.added=S.added||[]; cur.clock=S.clock||null;
+    cur.added=S.added||[]; cur.clock=S.clock||null; cur.intern=S.intern||null;
     if(DEMO){ DEMO.main=cur; startSession(); return; }
     S=cur; mergeAdded(); lastM=JSON.stringify(mainPart()); if(CAN) saveLocal(); render(); startSession();
   },lostConn);
@@ -3554,7 +3839,7 @@ function demoExit(){
   if(!DEMO) return; const d=DEMO; DEMO=null; rollAdd=false; rollAddMsg=''; rollNew=null;
   demoClose();
   S=d.S; MODE=d.MODE; CAN=d.CAN; CANS=d.CANS; sel=d.sel; confirmKey=d.confirmKey; tab=d.tab;
-  if(d.main){ const c=d.main; ['lock','venue','groupLevels','presentDay','lead','coachPresent','coachHomes','present','groups','history','added','clock'].forEach(k=>c[k]=S[k]); S=c; mergeAdded(); lastM=JSON.stringify(mainPart()); if(CAN) saveLocal(); }
+  if(d.main){ const c=d.main; ['lock','venue','groupLevels','presentDay','lead','coachPresent','coachHomes','present','groups','history','added','clock','intern'].forEach(k=>c[k]=S[k]); S=c; mergeAdded(); lastM=JSON.stringify(mainPart()); if(CAN) saveLocal(); }
   if(d.sess){ SESS=d.sess; applySess(d.sess); lastS=JSON.stringify(sessPart()); }
   render();
 }
@@ -3813,7 +4098,7 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
    nye ting som korte linjer, feil samlet under «Retting av feil». Nyeste versjon først.
    Etter en oppdatering vises et banner én gang per telefon; knappen «Nytt» ligger alltid øverst. */
 (function(){
-/*WN_LOG_START*/const WN_LOG=[{"v": "v97", "date": "", "nytt": [], "feil": 0, "feilAdmin": 1}, {"v": "", "date": "2026-11-09", "nytt": ["Opprop: «+ Legg til spiller» nederst i listen. Skriv navnet, så havner spilleren i gruppa med lavest nivå. Blir den gruppa for stor, flyttes den sterkeste der opp én gruppe – appen sier hvem.", "Dagens økt: på 75 min er det stasjoner (8 min) og så spill på alle treningene i perioden. Før spillet er det 5 min drikkepause mens dere rigger spillbanene.", "Dagens økt: klokka øverst viser hva dere holder på med og hvor lang tid det er igjen. Den starter når siste gruppe er ropt opp («Start stasjonene»). Trykk «Varsle meg», så piper telefonen og skjermen blinker ved hvert bytte."], "feil": 0, "admin": ["Dagens økt: «Flytt og snu» på oversiktskartet – bytt plass på øvelsene, snu felt og spillbaner (↻) og dra mål dit du vil. Gjelder hele perioden. «Tilbake til automatisk» fjerner det.", "Dagens økt: i «Flytt og snu» trykker du på et mål og velger type – kjeglemål, lite mål/Bazooka eller 5er/7er-mål. Velg flere hvis flere fungerer. Kartet, kjeglepakken og stasjonskortet viser det du har valgt.", "Dagens økt: de største øvelsene står nå nederst på kartet. I «Flytt og snu» velger du hvor mange felt som står øverst og nederst, drar i de gule strekene for å gjøre feltene høyere eller bredere, og «Like brede felt» gjør feltene i hver rad like brede."], "show": {"Opprop: «+ Legg til spiller» nederst i listen. Skriv navnet, så havner spilleren i gruppa med lavest nivå. Blir den gruppa for stor, flyttes den sterkeste der opp én gruppe – appen sier hvem.": "ny-spiller", "Dagens økt: på 75 min er det stasjoner (8 min) og så spill på alle treningene i perioden. Før spillet er det 5 min drikkepause mens dere rigger spillbanene.": "okt", "Dagens økt: klokka øverst viser hva dere holder på med og hvor lang tid det er igjen. Den starter når siste gruppe er ropt opp («Start stasjonene»). Trykk «Varsle meg», så piper telefonen og skjermen blinker ved hvert bytte.": "klokka"}}, {"v": "", "date": "2026-11-01", "nytt": ["Opprop: «Nullstill gruppene» fjerner dagens grupper og «kom sent». Oppmøtet blir stående, og du kan dele inn på nytt.", "Treningene er på torsdager fra 5. november.", "Dagens økt: velg bane for øvelsene og for spillet (sted og hel/halv/kvart). Kartet, feltene, stasjonskortene og spillbanene tilpasser seg plassen.", "Opprop: knappen «Lim inn fra Spond» er fjernet. Se heller i Spond hvem som ikke kommer, og trykk dem bort i oppropet før trening.", "Dagens økt: blir stasjonsfeltene under halvparten av anbefalt størrelse fordi banen er for liten, kommer en advarsel med forslag om større del av banen.", "Dagens økt: stasjonene og spillet ligger nå i samme kart med knappene «Stasjoner» og «Spill» øverst, som ved felles øvelser.", "«Vis lagene» og «Vis gruppene» får plass på skjermen uten å bla: kartet krymper, så lagene og knappen alltid synes.", "Spill på halv bane: målene står over og under på kartet, og banene fyller hver sin firedel (ca. 30 × 23 m med 4 baner).", "Nytt: «Slik gjør du» i «Opprop» og «Dagens økt» viser hele prosessen steg for steg – fra «Jeg lager gruppene i dag» til «Vis lagene» – som øving med oppdiktede spillere. Ingenting lagres. «Hjelp» og «Vis meg» i «Hva er nytt» gjør det samme.", "Lagene: ingen «Innbytter»-merke ved navnene. Er det flere enn 5 på et lag eller ulikt antall, står det under lagene hvordan dere bytter – eller at én kan være joker."], "feil": 0, "show": {"Opprop: «Nullstill gruppene» fjerner dagens grupper og «kom sent». Oppmøtet blir stående, og du kan dele inn på nytt.": "nullstill", "Dagens økt: velg bane for øvelsene og for spillet (sted og hel/halv/kvart). Kartet, feltene, stasjonskortene og spillbanene tilpasser seg plassen.": "baner", "Dagens økt: stasjonene og spillet ligger nå i samme kart med knappene «Stasjoner» og «Spill» øverst, som ved felles øvelser.": "kart-knapper", "«Vis lagene» og «Vis gruppene» får plass på skjermen uten å bla: kartet krymper, så lagene og knappen alltid synes.": "vis-lagene", "Spill på halv bane: målene står over og under på kartet, og banene fyller hver sin firedel (ca. 30 × 23 m med 4 baner).": "kart-spill", "Nytt: «Slik gjør du» i «Opprop» og «Dagens økt» viser hele prosessen steg for steg – fra «Jeg lager gruppene i dag» til «Vis lagene» – som øving med oppdiktede spillere. Ingenting lagres. «Hjelp» og «Vis meg» i «Hva er nytt» gjør det samme.": "prosess", "Lagene: ingen «Innbytter»-merke ved navnene. Er det flere enn 5 på et lag eller ulikt antall, står det under lagene hvordan dere bytter – eller at én kan være joker.": "vis-lagene"}}, {"v": "", "date": "2026-10-30", "nytt": ["Spill: ingen joker lenger. Alle står i lagslistene, og ved oddetall får det ene laget én spiller mer (f.eks. 5 mot 4).", "Ny fane «Opprop»: alle spillerne i én liste. Trykk på navnet til den som ikke er her – navnet blir stående, og ingenting flytter seg mens du roper opp.", "«Ferdig – del inn i grupper» låser gruppene og viser dem én om gangen med kartet: gruppens felt er markert, navnene står med stor skrift. «Vis gruppene» står over gruppelisten i «Dagens økt».", "Kommer noen for sent: trykk på navnet i oppropet. En stor beskjed i gruppens farge viser hvilken gruppe, hvor og hvem som er trener – med kartet. Ingen andre flyttes.", "«Vis lagene» i spilldelen: én bane om gangen med banen markert på kartet, «Lag 1 · med vest» og «Lag 2 · uten vest» med stor skrift, og innbytterne merket."], "feil": 2, "show": {"Spill: ingen joker lenger. Alle står i lagslistene, og ved oddetall får det ene laget én spiller mer (f.eks. 5 mot 4).": "vis-lagene", "Ny fane «Opprop»: alle spillerne i én liste. Trykk på navnet til den som ikke er her – navnet blir stående, og ingenting flytter seg mens du roper opp.": "opprop-liste", "«Ferdig – del inn i grupper» låser gruppene og viser dem én om gangen med kartet: gruppens felt er markert, navnene står med stor skrift. «Vis gruppene» står over gruppelisten i «Dagens økt».": "opprop-ferdig", "Kommer noen for sent: trykk på navnet i oppropet. En stor beskjed i gruppens farge viser hvilken gruppe, hvor og hvem som er trener – med kartet. Ingen andre flyttes.": "sen", "«Vis lagene» i spilldelen: én bane om gangen med banen markert på kartet, «Lag 1 · med vest» og «Lag 2 · uten vest» med stor skrift, og innbytterne merket.": "vis-lagene"}}, {"v": "", "date": "2026-10-26", "nytt": ["«Komme til avslutning»: alle stasjonskortene har «Vis øvelsen».", "Ny øvelse i «Komme til avslutning»: «Vegg og skudd».", "«2 mot 1 mot mål» går i én kø, med samme rotasjon som de andre 2 mot 1-øvelsene.", "Fra Høst B brukes høyst 2 ekte mål (5er eller 7er) per trening. De andre stasjonene bruker kjeglemål.", "Grupper: «Lås gruppene» når du har ropt dem opp. Kommer noen senere, får bare den spilleren en gruppe, og ingen andre flyttes.", "Oversiktskartet: etiketten ved hver stasjon viser også hvor mange baller stasjonen trenger, med et lite fotball-ikon.", "Færre baller: spill bruker 2 baller per kamp (én i spill, én hos treneren), og køøvelser bruker 3.", "Grupper: knappen «Kopier oppsett» er fjernet. Alle ser gruppene i appen.", "Spill: ett mål i hver ende av banen i stedet for fire kjeglemål. Kjeglemål er nå 5 m brede."], "feil": 3, "admin": ["Årshjul: «Planlegg» på hver periode viser treningene i perioden slik de blir, og du kan bytte øvelser på forhånd.", "Årshjul: nytt antall baller gjelder fra neste periode. Perioden dere er i beholder stasjonene sine."], "show": {"Oversiktskartet: etiketten ved hver stasjon viser også hvor mange baller stasjonen trenger, med et lite fotball-ikon.": "kart-st", "Spill: ett mål i hver ende av banen i stedet for fire kjeglemål. Kjeglemål er nå 5 m brede.": "kart-spill"}}, {"v": "", "date": "2026-10-20", "nytt": ["Felles øvelser: kartet viser én øvelse om gangen. Trykk «Neste: øvelse 2» for å se hva som settes ut i drikkepausen.", "Felles øvelser: alle feltene er like store.", "To nye øvelser i «Spille oss fremover»: «Haien» og «Trafikklys». De kan velges som øvelse 1 i felles øvelser.", "Felles øvelser: spill er del 3 i oversiktskartet, etter øvelse 1 og 2. Trykk på navnet for å gå til stasjonskortet.", "Spill: maks 5 mot 5 og så store baner som mulig. Appen viser hvem som spiller på hvilken bane og hvem som er på lag sammen.", "Spill: hver bane har sin trener. Trenerne fordeles automatisk.", "Felles øvelser: trenerne bytter felt for hver trening, så alle får alle nivåene."], "feil": 1}, {"v": "", "date": "2026-10-13", "nytt": ["Begge 2 mot 1-øvelsene går i én kø, med fast rekkefølge for hvem som blir forsvarer.", "Treningene endrer seg gjennom temaet: de to første har spill på stasjonene, deretter kortere stasjoner og spill (75 min) eller felles øvelser for alle gruppene (60 min).", "Drikkepause etter hver andre stasjon.", "Kjeglepakker: appen lager pakkelisten selv og viser den ved hver stasjon på kartet.", "Ryddigere tidsplan: rigg på 10 minutter, og hvor lenge hver del varer står i et farget merke til høyre.", "«Vis øvelsen»: stasjonskortene i «Spille oss fremover» viser øvelsen som en animasjon.", "Samme farger på alle kort: blå angriper, rød forsvarer, gul joker/keeper/vegg og svart trener.", "«Hva er nytt»: her ser du hva som er endret i appen.", "Hver trener beholder øvelsen sin gjennom hele perioden, også når det kommer færre barn. Den som lager gruppene kan bytte trener på en stasjon."], "feil": 6, "admin": ["Felles øvelser: «2 mot 1 – Waves» kan velges sammen med «Før ballen over linja»."]}, {"v": "", "date": "2026-10-06", "nytt": [], "feil": 0, "admin": ["Importer et tidligere lagoppsett, så appen unngår å sette de samme spillerne sammen igjen."]}, {"v": "", "date": "2026-10-05", "nytt": ["Oppmøtet gjelder neste trening og nullstilles dagen etter, også for trenerne.", "Trenerne beholder stasjonen sin gjennom hele temaperioden."], "feil": 0}, {"v": "", "date": "2026-10-04", "nytt": ["1-ere står alltid foran 1½ – både når gruppene lages og når noen er borte.", "Flest spillere på de største banene.", "«Spill på stasjonene», flaten målt til 49,7 × 31,5 m, og tre nye øvelser for «Spille oss fremover».", "En øvelse du bytter, blir stående på samme stasjonsnummer.", "Samme øvelse kan ikke lenger havne på to stasjoner etter flere bytter."], "feil": 0}, {"v": "", "date": "2026-10-03", "nytt": ["Faste grupper med hele stallen, utjevning når noen er borte, og valg av trenere.", "Smartere utjevning: spillere flyttes via gruppene imellom, så hver havner nærmere sitt eget nivå."], "feil": 0, "admin": ["Delen for administrator på hjelpesiden vises bare når administratoren er logget inn.", "Knapp for å forkorte etternavn. Innliming fra Spond kjenner fortsatt igjen fullt navn."]}, {"v": "", "date": "2026-10-02", "nytt": ["Appen ligger på nett, og alle trenerne ser det samme uten egen konto.", "Én trener har ansvaret for å lage gruppene hver trening («Jeg lager gruppene i dag»).", "Brukerinstruksjonen «Slik bruker du appen» og en hjelp-knapp øverst til høyre.", "Ny tidsplan: 5 min rigg, stasjoner på minst 6 min, drikkepause, spill og samling uten minutter."], "feil": 0}];/*WN_LOG_END*/
+/*WN_LOG_START*/const WN_LOG=[{"v": "v98", "date": "", "nytt": [], "feil": 0, "admin": ["Dagens økt: nytt format «Internkamper». Velg lagene (fra «Lag», jevne lag, nivålag eller manuelt), så lager appen kampoppsettet på to baner, kamplengden og øvelsen for laget som står over. Oppropet deler inn i lag, og klokka går runde for runde."]}, {"v": "", "date": "2026-11-10", "nytt": [], "feil": 0, "feilAdmin": 1}, {"v": "", "date": "2026-11-09", "nytt": ["Opprop: «+ Legg til spiller» nederst i listen. Skriv navnet, så havner spilleren i gruppa med lavest nivå. Blir den gruppa for stor, flyttes den sterkeste der opp én gruppe – appen sier hvem.", "Dagens økt: på 75 min er det stasjoner (8 min) og så spill på alle treningene i perioden. Før spillet er det 5 min drikkepause mens dere rigger spillbanene.", "Dagens økt: klokka øverst viser hva dere holder på med og hvor lang tid det er igjen. Den starter når siste gruppe er ropt opp («Start stasjonene»). Trykk «Varsle meg», så piper telefonen og skjermen blinker ved hvert bytte."], "feil": 0, "admin": ["Dagens økt: «Flytt og snu» på oversiktskartet – bytt plass på øvelsene, snu felt og spillbaner (↻) og dra mål dit du vil. Gjelder hele perioden. «Tilbake til automatisk» fjerner det.", "Dagens økt: i «Flytt og snu» trykker du på et mål og velger type – kjeglemål, lite mål/Bazooka eller 5er/7er-mål. Velg flere hvis flere fungerer. Kartet, kjeglepakken og stasjonskortet viser det du har valgt.", "Dagens økt: de største øvelsene står nå nederst på kartet. I «Flytt og snu» velger du hvor mange felt som står øverst og nederst, drar i de gule strekene for å gjøre feltene høyere eller bredere, og «Like brede felt» gjør feltene i hver rad like brede."], "show": {"Opprop: «+ Legg til spiller» nederst i listen. Skriv navnet, så havner spilleren i gruppa med lavest nivå. Blir den gruppa for stor, flyttes den sterkeste der opp én gruppe – appen sier hvem.": "ny-spiller", "Dagens økt: på 75 min er det stasjoner (8 min) og så spill på alle treningene i perioden. Før spillet er det 5 min drikkepause mens dere rigger spillbanene.": "okt", "Dagens økt: klokka øverst viser hva dere holder på med og hvor lang tid det er igjen. Den starter når siste gruppe er ropt opp («Start stasjonene»). Trykk «Varsle meg», så piper telefonen og skjermen blinker ved hvert bytte.": "klokka"}}, {"v": "", "date": "2026-11-01", "nytt": ["Opprop: «Nullstill gruppene» fjerner dagens grupper og «kom sent». Oppmøtet blir stående, og du kan dele inn på nytt.", "Treningene er på torsdager fra 5. november.", "Dagens økt: velg bane for øvelsene og for spillet (sted og hel/halv/kvart). Kartet, feltene, stasjonskortene og spillbanene tilpasser seg plassen.", "Opprop: knappen «Lim inn fra Spond» er fjernet. Se heller i Spond hvem som ikke kommer, og trykk dem bort i oppropet før trening.", "Dagens økt: blir stasjonsfeltene under halvparten av anbefalt størrelse fordi banen er for liten, kommer en advarsel med forslag om større del av banen.", "Dagens økt: stasjonene og spillet ligger nå i samme kart med knappene «Stasjoner» og «Spill» øverst, som ved felles øvelser.", "«Vis lagene» og «Vis gruppene» får plass på skjermen uten å bla: kartet krymper, så lagene og knappen alltid synes.", "Spill på halv bane: målene står over og under på kartet, og banene fyller hver sin firedel (ca. 30 × 23 m med 4 baner).", "Nytt: «Slik gjør du» i «Opprop» og «Dagens økt» viser hele prosessen steg for steg – fra «Jeg lager gruppene i dag» til «Vis lagene» – som øving med oppdiktede spillere. Ingenting lagres. «Hjelp» og «Vis meg» i «Hva er nytt» gjør det samme.", "Lagene: ingen «Innbytter»-merke ved navnene. Er det flere enn 5 på et lag eller ulikt antall, står det under lagene hvordan dere bytter – eller at én kan være joker."], "feil": 0, "show": {"Opprop: «Nullstill gruppene» fjerner dagens grupper og «kom sent». Oppmøtet blir stående, og du kan dele inn på nytt.": "nullstill", "Dagens økt: velg bane for øvelsene og for spillet (sted og hel/halv/kvart). Kartet, feltene, stasjonskortene og spillbanene tilpasser seg plassen.": "baner", "Dagens økt: stasjonene og spillet ligger nå i samme kart med knappene «Stasjoner» og «Spill» øverst, som ved felles øvelser.": "kart-knapper", "«Vis lagene» og «Vis gruppene» får plass på skjermen uten å bla: kartet krymper, så lagene og knappen alltid synes.": "vis-lagene", "Spill på halv bane: målene står over og under på kartet, og banene fyller hver sin firedel (ca. 30 × 23 m med 4 baner).": "kart-spill", "Nytt: «Slik gjør du» i «Opprop» og «Dagens økt» viser hele prosessen steg for steg – fra «Jeg lager gruppene i dag» til «Vis lagene» – som øving med oppdiktede spillere. Ingenting lagres. «Hjelp» og «Vis meg» i «Hva er nytt» gjør det samme.": "prosess", "Lagene: ingen «Innbytter»-merke ved navnene. Er det flere enn 5 på et lag eller ulikt antall, står det under lagene hvordan dere bytter – eller at én kan være joker.": "vis-lagene"}}, {"v": "", "date": "2026-10-30", "nytt": ["Spill: ingen joker lenger. Alle står i lagslistene, og ved oddetall får det ene laget én spiller mer (f.eks. 5 mot 4).", "Ny fane «Opprop»: alle spillerne i én liste. Trykk på navnet til den som ikke er her – navnet blir stående, og ingenting flytter seg mens du roper opp.", "«Ferdig – del inn i grupper» låser gruppene og viser dem én om gangen med kartet: gruppens felt er markert, navnene står med stor skrift. «Vis gruppene» står over gruppelisten i «Dagens økt».", "Kommer noen for sent: trykk på navnet i oppropet. En stor beskjed i gruppens farge viser hvilken gruppe, hvor og hvem som er trener – med kartet. Ingen andre flyttes.", "«Vis lagene» i spilldelen: én bane om gangen med banen markert på kartet, «Lag 1 · med vest» og «Lag 2 · uten vest» med stor skrift, og innbytterne merket."], "feil": 2, "show": {"Spill: ingen joker lenger. Alle står i lagslistene, og ved oddetall får det ene laget én spiller mer (f.eks. 5 mot 4).": "vis-lagene", "Ny fane «Opprop»: alle spillerne i én liste. Trykk på navnet til den som ikke er her – navnet blir stående, og ingenting flytter seg mens du roper opp.": "opprop-liste", "«Ferdig – del inn i grupper» låser gruppene og viser dem én om gangen med kartet: gruppens felt er markert, navnene står med stor skrift. «Vis gruppene» står over gruppelisten i «Dagens økt».": "opprop-ferdig", "Kommer noen for sent: trykk på navnet i oppropet. En stor beskjed i gruppens farge viser hvilken gruppe, hvor og hvem som er trener – med kartet. Ingen andre flyttes.": "sen", "«Vis lagene» i spilldelen: én bane om gangen med banen markert på kartet, «Lag 1 · med vest» og «Lag 2 · uten vest» med stor skrift, og innbytterne merket.": "vis-lagene"}}, {"v": "", "date": "2026-10-26", "nytt": ["«Komme til avslutning»: alle stasjonskortene har «Vis øvelsen».", "Ny øvelse i «Komme til avslutning»: «Vegg og skudd».", "«2 mot 1 mot mål» går i én kø, med samme rotasjon som de andre 2 mot 1-øvelsene.", "Fra Høst B brukes høyst 2 ekte mål (5er eller 7er) per trening. De andre stasjonene bruker kjeglemål.", "Grupper: «Lås gruppene» når du har ropt dem opp. Kommer noen senere, får bare den spilleren en gruppe, og ingen andre flyttes.", "Oversiktskartet: etiketten ved hver stasjon viser også hvor mange baller stasjonen trenger, med et lite fotball-ikon.", "Færre baller: spill bruker 2 baller per kamp (én i spill, én hos treneren), og køøvelser bruker 3.", "Grupper: knappen «Kopier oppsett» er fjernet. Alle ser gruppene i appen.", "Spill: ett mål i hver ende av banen i stedet for fire kjeglemål. Kjeglemål er nå 5 m brede."], "feil": 3, "admin": ["Årshjul: «Planlegg» på hver periode viser treningene i perioden slik de blir, og du kan bytte øvelser på forhånd.", "Årshjul: nytt antall baller gjelder fra neste periode. Perioden dere er i beholder stasjonene sine."], "show": {"Oversiktskartet: etiketten ved hver stasjon viser også hvor mange baller stasjonen trenger, med et lite fotball-ikon.": "kart-st", "Spill: ett mål i hver ende av banen i stedet for fire kjeglemål. Kjeglemål er nå 5 m brede.": "kart-spill"}}, {"v": "", "date": "2026-10-20", "nytt": ["Felles øvelser: kartet viser én øvelse om gangen. Trykk «Neste: øvelse 2» for å se hva som settes ut i drikkepausen.", "Felles øvelser: alle feltene er like store.", "To nye øvelser i «Spille oss fremover»: «Haien» og «Trafikklys». De kan velges som øvelse 1 i felles øvelser.", "Felles øvelser: spill er del 3 i oversiktskartet, etter øvelse 1 og 2. Trykk på navnet for å gå til stasjonskortet.", "Spill: maks 5 mot 5 og så store baner som mulig. Appen viser hvem som spiller på hvilken bane og hvem som er på lag sammen.", "Spill: hver bane har sin trener. Trenerne fordeles automatisk.", "Felles øvelser: trenerne bytter felt for hver trening, så alle får alle nivåene."], "feil": 1}, {"v": "", "date": "2026-10-13", "nytt": ["Begge 2 mot 1-øvelsene går i én kø, med fast rekkefølge for hvem som blir forsvarer.", "Treningene endrer seg gjennom temaet: de to første har spill på stasjonene, deretter kortere stasjoner og spill (75 min) eller felles øvelser for alle gruppene (60 min).", "Drikkepause etter hver andre stasjon.", "Kjeglepakker: appen lager pakkelisten selv og viser den ved hver stasjon på kartet.", "Ryddigere tidsplan: rigg på 10 minutter, og hvor lenge hver del varer står i et farget merke til høyre.", "«Vis øvelsen»: stasjonskortene i «Spille oss fremover» viser øvelsen som en animasjon.", "Samme farger på alle kort: blå angriper, rød forsvarer, gul joker/keeper/vegg og svart trener.", "«Hva er nytt»: her ser du hva som er endret i appen.", "Hver trener beholder øvelsen sin gjennom hele perioden, også når det kommer færre barn. Den som lager gruppene kan bytte trener på en stasjon."], "feil": 6, "admin": ["Felles øvelser: «2 mot 1 – Waves» kan velges sammen med «Før ballen over linja»."]}, {"v": "", "date": "2026-10-06", "nytt": [], "feil": 0, "admin": ["Importer et tidligere lagoppsett, så appen unngår å sette de samme spillerne sammen igjen."]}, {"v": "", "date": "2026-10-05", "nytt": ["Oppmøtet gjelder neste trening og nullstilles dagen etter, også for trenerne.", "Trenerne beholder stasjonen sin gjennom hele temaperioden."], "feil": 0}, {"v": "", "date": "2026-10-04", "nytt": ["1-ere står alltid foran 1½ – både når gruppene lages og når noen er borte.", "Flest spillere på de største banene.", "«Spill på stasjonene», flaten målt til 49,7 × 31,5 m, og tre nye øvelser for «Spille oss fremover».", "En øvelse du bytter, blir stående på samme stasjonsnummer.", "Samme øvelse kan ikke lenger havne på to stasjoner etter flere bytter."], "feil": 0}, {"v": "", "date": "2026-10-03", "nytt": ["Faste grupper med hele stallen, utjevning når noen er borte, og valg av trenere.", "Smartere utjevning: spillere flyttes via gruppene imellom, så hver havner nærmere sitt eget nivå."], "feil": 0, "admin": ["Delen for administrator på hjelpesiden vises bare når administratoren er logget inn.", "Knapp for å forkorte etternavn. Innliming fra Spond kjenner fortsatt igjen fullt navn."]}, {"v": "", "date": "2026-10-02", "nytt": ["Appen ligger på nett, og alle trenerne ser det samme uten egen konto.", "Én trener har ansvaret for å lage gruppene hver trening («Jeg lager gruppene i dag»).", "Brukerinstruksjonen «Slik bruker du appen» og en hjelp-knapp øverst til høyre.", "Ny tidsplan: 5 min rigg, stasjoner på minst 6 min, drikkepause, spill og samling uten minutter."], "feil": 0}];/*WN_LOG_END*/
 if(!WN_LOG.length) return;
 const KEY='g2018-sett-versjon';
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
