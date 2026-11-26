@@ -1768,15 +1768,15 @@ function stPrintChart(R){
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%" role="img" aria-label="Barn per trening">${s}</svg>`;
 }
 function stPrintHtml(R){
-  const on=stPickGet(), head=(S.settings&&S.settings.headCoach)||'Alexander Sørlie';
+  const on=stPickGet();
   const d0=R.T.length?R.T[0].d:null, d1=R.T.length?R.T[R.T.length-1].d:null;
   const per=(loc)=>d0?new Date(d0+'T12:00:00').toLocaleDateString(loc,{day:'numeric',month:'long'})+' – '+new Date(d1+'T12:00:00').toLocaleDateString(loc,{day:'numeric',month:'long',year:'numeric'}):'';
   const L={nb:{kick:'MANGLERUD STAR · G2018',title:'Treningene i tall',sub:'Takk for at dere sender barna på trening!',
       tr:'treninger',snitt:'barn på hver trening i snitt',barn:'barn har trent med oss',timer:'timer frivillig innsats fra trenerteamet',snittT:'timer i snitt per trener',
-      kurve:'Barn per trening',help:'Vil du hjelpe til som trener eller på en stasjon? Snakk med oss!',sign:esc(head)+' (hovedtrener) og resten av trenerteamet',page:'Side 1 av 2 · English on page 2',loc:'nb-NO'},
+      kurve:'Barn per trening',help:'Vil du hjelpe til som trener eller på en stasjon? Snakk med oss!',page:'Side 1 av 2 · English on page 2',loc:'nb-NO'},
     en:{kick:'MANGLERUD STAR · G2018',title:'Our training in numbers',sub:'Thank you for bringing your children to training!',
       tr:'training sessions',snitt:'children per session on average',barn:'children have trained with us',timer:'hours of volunteer work from the coaching team',snittT:'hours per coach on average',
-      kurve:'Children per session',help:'Would you like to help as a coach or at a station? Talk to us!',sign:esc(head)+' (head coach) and the rest of the coaching team',page:'Page 2 of 2 · Norsk på side 1',loc:'en-GB'}};
+      kurve:'Children per session',help:'Would you like to help as a coach or at a station? Talk to us!',page:'Page 2 of 2 · Norsk på side 1',loc:'en-GB'}};
   const val={tr:R.T.length,snitt:Math.round(R.avg),barn:R.kids,timer:stH(R.hours),snittT:stH(R.hAvg)};
   const tile=(x,t)=>`<div style="background:#eef5f0;border-radius:12px;padding:14px 16px"><div style="font-size:40px;font-weight:700;color:#1F6B46;line-height:1">${x}</div><div style="font-size:15px;margin-top:6px">${t}</div></div>`;
   const page=(l,first)=>{ const t=L[l], tiles=['tr','snitt','barn','timer','snittT'].filter(k=>on[k]).map(k=>tile(val[k],t[k])).join('');
@@ -1786,7 +1786,7 @@ function stPrintHtml(R){
       ${tiles?`<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px">${tiles}</div>`:''}
       ${on.kurve&&R.T.length?`<div style="margin-top:22px"><div style="font-size:20px;font-weight:700;margin-bottom:6px">${t.kurve}</div>${stPrintChart(R)}</div>`:''}
       <div style="margin-top:22px;font-size:15px">${t.help}</div>
-      <div style="margin-top:28px;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:space-between;font-size:12px;color:#666"><span>${t.sign}</span><span>${t.page}</span></div></section>`; };
+      <div style="margin-top:28px;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:flex-end;font-size:12px;color:#666"><span>${t.page}</span></div></section>`; };
   return page('nb',true)+page('en',false);
 }
 function stDoPrint(R){
