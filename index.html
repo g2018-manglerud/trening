@@ -3251,14 +3251,16 @@ const ikShort=n=>String(n).trim().split(/\s+/).pop();
 /* Med to baner passer 4–5 lag best (høyst ett lag står over). 6 lag kan velges selv. */
 const ikAutoT=n=>n<=16?2:n<=24?3:n<=32?4:5;
 /* Antall lag: «5 per lag» (v99) gir akkurat 5 mot 5 – så mange lag at alle har 5, noen 6. */
-const ikTn=(cfg,n)=>cfg.src==='fem'?Math.max(2,Math.floor(n/5)):(cfg.n||ikAutoT(n));
+const ikTn=(cfg,n)=>cfg.src==='fem'?Math.max(2,Math.floor(n/5)):cfg.src==='niva'?2*(cfg.n?Math.max(1,Math.floor(cfg.n/2)):ikNivaPairs(n)):(cfg.n||ikAutoT(n));
+/* Nivålag (v103): lagene lages to og to av spillere på samme nivå, så de spiller mot hverandre. Rundt 5 per lag. */
+const ikNivaPairs=n=>Math.max(1,Math.floor(n/10));
 /* Kamplengde automatisk: ut fra alle mot alle, 8–15 min (minst 10 med 6 lag eller flere). */
 function ikAutoLen(T,A){ const Rc=Math.max(1,ikSchedule(ikCircle(T),T,2,99,true).length); return Math.max(T>=6?10:8,Math.min(15,Math.floor((A-(Rc-1))/Rc))); }
 /* Felt i midten (v99): hvilket av de to feltene et lag som står over, går til. */
 function ikMidOf(I,rd,k){ if(!I||I.mids<2||!rd) return 0; if(rd.mid&&k in rd.mid) return rd.mid[k]; const i=rd.rest.indexOf(k); return i<Math.ceil(rd.rest.length/2)?0:1; }
 let IKSEL=null;   /* manuelt: spilleren som er valgt for bytte */
 let IKEDIT=false, IKGSEL=null;   /* «Flytt og snu» på internkartet: på/av, og målet som er trykket på {p:'m'|'p0'|'p1', gi} */
-function ikCfg(w){ const c=((NX_ENV.wheelState().intern||{})[w.date])||{}; return {src:IK_SRC.some(x=>x[0]===c.src)?c.src:'jevne',saved:c.saved||null,n:Number(c.n)||null,len:Number(c.len)||null,sit:c.sit||null,sitPos:typeof c.sitPos==='number'?c.sitPos:null,turn:Number(c.turn)||0,goals:c.goals||null,gtype:c.gtype||null,pgoals:c.pgoals||null,pgtype:c.pgtype||null,mids:(c.mids===1||c.mids===2)?c.mids:null,sit2:c.sit2||null,turn2:typeof c.turn2==='number'?c.turn2:2,goals2:c.goals2||null,gtype2:c.gtype2||null}; }
+function ikCfg(w){ const c=((NX_ENV.wheelState().intern||{})[w.date])||{}; return {src:IK_SRC.some(x=>x[0]===c.src)?c.src:'jevne',saved:c.saved||null,n:Number(c.n)||null,len:Number(c.len)||null,sit:c.sit||null,sitPos:typeof c.sitPos==='number'?c.sitPos:null,turn:Number(c.turn)||0,goals:c.goals||null,gtype:c.gtype||null,pgoals:c.pgoals||null,pgtype:c.pgtype||null,mids:(c.mids===1||c.mids===2)?c.mids:null,sit2:c.sit2||null,turn2:typeof c.turn2==='number'?c.turn2:2,goals2:c.goals2||null,gtype2:c.gtype2||null,nx:!!c.nx}; }
 function ikSaved(cfg){ const H=NX_ENV.savedTeams(); return H.find(x=>x.id===cfg.saved)||H[H.length-1]||null; }
 /* Alle mot alle: «sirkelmetoden» gir runder der ingen spiller to kamper samtidig. */
 function ikCircle(T){
@@ -3268,7 +3270,10 @@ function ikCircle(T){
   for(let r=0;r<n-1;r++){ for(let i=0;i<n/2;i++){ const a=t[i], b=t[n-1-i]; if(a!==null&&b!==null) out.push(a<b?[a,b]:[b,a]); } t.splice(1,0,t.pop()); }
   return out; }
 /* Nivålag (lag 1 = sterkest): mest kamper mot lagene nærmest i nivå. */
-function ikNiva(T){ const out=[]; for(let d=1;d<=Math.min(2,T-1);d++) for(let a=0;a+d<T;a++) out.push([a,a+d]); return out; }
+function ikNiva(T,x){ const out=[]; for(let a=0;a+1<T;a+=2) out.push([a,a+1]);
+  /* «Også nivået over/under» (manuelt valg): kamper mot de to lagene i paret ved siden av */
+  if(x) for(let a=0;a+2<T;a+=2) for(const i of [a,a+1]) for(const j of [a+2,a+3]) if(j<T) out.push([i,j]);
+  if(T%2) out.push([T-2,T-1]); return out; }
 /* Fordeler kampene på runder med høyst «pitches» kamper, ingen lag to ganger i samme runde. De som har spilt minst, går først.
    Når alle kampene er spilt, begynner listen på nytt. once: stopp når listen er brukt opp én gang. */
 function ikSchedule(base,T,pitches,R,once,fair){   /* fair: de som har spilt minst først (nivålag); ellers rekkefølgen i listen */
@@ -3316,7 +3321,7 @@ function ikPlan(P){
   const cfg=ikCfg(P.w), tm=ikTeams(P,cfg), T=tm.teams.length, pitches=2;
   const pres=id=>NX_ENV.isPresent(id);
   tm.teams.forEach(t=>t.on=t.ids.filter(id=>pres(id)&&byId(id)));
-  const A=P.total-5-6, base=(cfg.src==='niva'?ikNiva:ikCircle)(T);
+  const A=P.total-5-6, base=cfg.src==='niva'?ikNiva(T,cfg.nx):ikCircle(T);
   const len=cfg.len||ikAutoLen(T,A);   /* kamplengden regnes ut fra alle mot alle */
   let R=Math.max(1,Math.floor((A+1)/(len+1)));
   if((R+1)*(len+1)<=A+2) R++;   /* samlingen kan bli 5 min hvis det gir én runde til (v99) */
@@ -3345,7 +3350,15 @@ function ikLock(){
     const T=Math.min(ikTn(cfg,pres.length),Math.max(1,pres.length));
     let split;
     if(cfg.src==='niva'){ const s=pres.slice().sort((a,b)=>((byId(a)||{}).level||2)-((byId(b)||{}).level||2)||String((byId(a)||{}).name).localeCompare(String((byId(b)||{}).name),'nb'));
-      split=[]; let k=0; for(let t=0;t<T;t++){ const n=Math.floor(s.length/T)+(t<s.length%T?1:0); split.push(s.slice(k,k+n)); k+=n; } }
+      /* v103: delt i par (sterkest først). Hvert par deles likt i to lag (slangefordeling på nivå), så nivå 1 spiller mot nivå 1. */
+      const Pn=Math.max(1,Math.floor(T/2)); split=[]; let k=0;
+      for(let q=0;q<Pn;q++){ const n=Math.floor(s.length/Pn)+(q<s.length%Pn?1:0), ch=s.slice(k,k+n); k+=n;
+        /* to og to (best først): den beste av de to går til laget som er svakest nå, så lagene blir like sterke */
+        const a=[],b=[]; let sa=0,sb=0; const lv=id=>Number((byId(id)||{}).level)||2;
+        for(let i=0;i<ch.length;i+=2){ const x=ch[i], y=ch[i+1];
+          if(y===undefined){ if(sa>=sb){ a.push(x); sa+=lv(x); } else { b.push(x); sb+=lv(x); } break; }
+          if(sa>=sb){ a.push(x); b.push(y); sa+=lv(x); sb+=lv(y); } else { b.push(x); a.push(y); sb+=lv(x); sa+=lv(y); } }
+        split.push(a,b); } }
     else split=NX_ENV.evenTeams(pres,T);
     teams=split.map((ids,i)=>({name:IK_COLS[i]||('Lag '+(i+1)),ids}));
   }
@@ -3432,7 +3445,10 @@ function ikTimes(P){ const st=startTimeFor(P.w.date); if(!st) return null; const
 /* «Vis lagene» i oppropet: ett lag om gangen. */
 function ikCall(){
   const P=plan(); if(P.mode!=='intern'||!P.intern.locked) return null; const I=P.intern;
-  return I.teams.map((t,k)=>{ const W=ikWhere(k)||{}, rd=I.rounds[0], mi=rd?rd.ms.findIndex(m=>m.includes(k)):-1;
+  const rd0=I.rounds[0], ord=rd0?rd0.ms.flat().concat(rd0.rest.slice().sort((a,b)=>ikMidOf(I,rd0,a)-ikMidOf(I,rd0,b)||a-b)):I.teams.map((t,k)=>k);
+  I.teams.forEach((t,k)=>{ if(!ord.includes(k)) ord.push(k); });
+  /* v103: lagene ropes opp i den rekkefølgen de starter – de to på bane 1, de to på bane 2, så de som står over */
+  return ord.map(k=>{ const t=I.teams[k], W=ikWhere(k)||{}, rd=rd0, mi=rd?rd.ms.findIndex(m=>m.includes(k)):-1;
     return {k,bib:ikBib(t.name),name:t.name,ids:t.on.slice(),late:I.late,coach:NX_ENV.coachesIn(t.on),txt:W.txt||'',svg:ikDrawing(P,mi<0?(ikMidOf(I,rd,k)?'mid2':'mid'):mi)}; });
 }
 function renderIntern(P,head){
@@ -3444,12 +3460,13 @@ function renderIntern(P,head){
     <div class="row" style="gap:8px;align-items:center"><span class="hint"><b>Lagene:</b></span>${seg('ikSrc',IK_SRC,cfg.src)}</div>
     ${cfg.src==='lag'?(H.length?`<label class="hint" style="display:flex;flex-direction:column;gap:3px">Lagoppsett fra «Lag»<select id="ikSaved">${H.slice().reverse().map(e=>`<option value="${e.id}" ${I.entry&&I.entry.id===e.id?'selected':''}>${esc(NX_ENV.entryLabel(e))} · ${e.teams.length} lag</option>`).join('')}</select></label>`:'<div class="note">Det finnes ingen lagrede lagoppsett ennå. Lag lagene under «Lag» først, eller velg jevne lag.</div>')
       :cfg.src==='fem'?`<div class="hint"><b>Antall lag:</b> ${ikTn(cfg,npres)} lag – regnes ut fra hvor mange som er her${npres?' ('+npres+')':''}.</div>`
-      :`<div class="row" style="gap:8px;align-items:center"><span class="hint"><b>Antall lag:</b></span>${seg('ikN',[['','Auto ('+ikAutoT(NX_ENV.presentIds().length)+')'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6']],cfg.n||'')}</div>`}
+      :`<div class="row" style="gap:8px;align-items:center"><span class="hint"><b>Antall lag:</b></span>${cfg.src==='niva'?seg('ikN',[['','Auto ('+2*ikNivaPairs(npres)+')'],['2','2'],['4','4'],['6','6'],['8','8']],cfg.n||''):seg('ikN',[['','Auto ('+ikAutoT(NX_ENV.presentIds().length)+')'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6']],cfg.n||'')}</div>
+      ${cfg.src==='niva'?`<div class="row" style="gap:8px;align-items:center"><span class="hint"><b>Kampene:</b></span>${seg('ikNx',[['','Bare samme nivå'],['1','Også nivået over/under']],cfg.nx?'1':'')}</div>`:''}`}
     <div class="row" style="gap:8px;align-items:center"><span class="hint"><b>Kamplengde:</b></span>${seg('ikLen',[['','Auto ('+autoLen+' min)'],['8','8'],['10','10'],['12','12'],['15','15'],['20','20']],cfg.len||'')}</div>
     <div class="row" style="gap:8px;align-items:center"><span class="hint"><b>Felt i midten:</b></span>${seg('ikMids',[['','Auto ('+I.autoMids+')'],['1','1'],['2','2']],cfg.mids||'')}</div>
     <label class="hint" style="display:flex;flex-direction:column;gap:3px">${I.mids===2?'Øvelse midt 1':'Øvelse for laget som står over'}<select id="ikSit"><option value="" ${cfg.sit?'':'selected'}>Automatisk: ${esc(I.sit&&!cfg.sit?I.sit.title:ikSit(P,Object.assign({},cfg,{sit:null}))?.title||'')}</option>${ikSitAll(P).map(g=>`<optgroup label="${esc(g.t===P.T?g.t+' (temaet nå)':g.t)}">${g.list.map(e=>`<option value="${e.id}" ${cfg.sit===e.id?'selected':''}>${esc(e.title)}</option>`).join('')}</optgroup>`).join('')}</select></label>
     ${I.mids===2?`<label class="hint" style="display:flex;flex-direction:column;gap:3px">Øvelse midt 2 (snudd, hver sin retning)<select id="ikSit2"><option value="" ${cfg.sit2?'':'selected'}>Samme som midt 1</option>${ikSitAll(P).map(g=>`<optgroup label="${esc(g.t===P.T?g.t+' (temaet nå)':g.t)}">${g.list.map(e=>`<option value="${e.id}" ${cfg.sit2===e.id?'selected':''}>${esc(e.title)}</option>`).join('')}</optgroup>`).join('')}</select></label>`:''}
-    <span class="hint">${{lag:'Lagene fra et lagret oppsett. De som er borte, er strøket. Kampene: alle mot alle.',jevne:'Appen lager like sterke lag av dem som er her, når oppropet er ferdig. Kampene: alle mot alle.',fem:'Akkurat 5 mot 5: lag på 5 (noen på 6), like sterke, når oppropet er ferdig. Med mange lag står flere over samtidig – de deles på to felt i midten.',niva:'Spillere på samme nivå på samme lag (Grønn = sterkest). Kampene: mest mot lagene nærmest i nivå.',manuell:'Appen lager jevne lag når oppropet er ferdig. Etterpå kan du bytte spillere: trykk på én og så på en annen.'}[cfg.src]}${I.locked?' Endrer du lagvalget, må lagene deles inn på nytt i oppropet.':''}</span></div>`:'';
+    <span class="hint">${{lag:'Lagene fra et lagret oppsett. De som er borte, er strøket. Kampene: alle mot alle.',jevne:'Appen lager like sterke lag av dem som er her, når oppropet er ferdig. Kampene: alle mot alle.',fem:'Akkurat 5 mot 5: lag på 5 (noen på 6), like sterke, når oppropet er ferdig. Med mange lag står flere over samtidig – de deles på to felt i midten.',niva:'To og to lag lages av spillere på samme nivå og deles likt, så de spiller mot hverandre (Grønn og Blå = sterkest). Velg «Også nivået over/under» hvis lagene skal møte nivået ved siden av også.',manuell:'Appen lager jevne lag når oppropet er ferdig. Etterpå kan du bytte spillere: trykk på én og så på en annen.'}[cfg.src]}${I.locked?' Endrer du lagvalget, må lagene deles inn på nytt i oppropet.':''}</span></div>`:'';
   /* Tidsplan */
   let t=5; const rows=[`<tr><td class="tm">${at(0)}–${at(5)}</td><td><b>Rigg og opprop:</b> barna går til lagfargen sin, trenerne setter opp to baner og ${I.mids===2?'to felt':'feltet'} i midten.</td></tr>`];
   I.rounds.forEach((rd,r)=>{ rows.push(`<tr><td class="tm">${at(t)}–${at(t+I.len)}</td><td><b>Runde ${r+1}</b><div class="ikrd">${rd.ms.map((m,i)=>`<span class="ikm"><span class="hint">Bane ${i+1}</span>${ikChip(I,m[0])}<span class="ikvs">–</span>${ikChip(I,m[1])}</span>`).join('')}${rd.rest.length?(I.mids===2&&rd.rest.length>1?[0,1].map(j=>`<span class="ikm"><span class="hint">Midt ${j+1}</span>${rd.rest.filter(k=>ikMidOf(I,rd,k)===j).map(k=>ikChip(I,k)).join(' ')}</span>`).join(''):`<span class="ikm"><span class="hint">Står over</span>${rd.rest.map(k=>ikChip(I,k)).join(' ')}</span>`):''}</div></td></tr>`);
@@ -3490,6 +3507,7 @@ function renderIntern(P,head){
   document.querySelectorAll('#ikSrc button').forEach(b=>b.onclick=()=>setC(c=>{ c.src=b.dataset.v; delete c.n; }));
   if($('ikSaved')) $('ikSaved').onchange=e=>setC(c=>{ c.saved=e.target.value; });
   document.querySelectorAll('#ikN button').forEach(b=>b.onclick=()=>setC(c=>{ if(b.dataset.v) c.n=Number(b.dataset.v); else delete c.n; }));
+  document.querySelectorAll('#ikNx button').forEach(b=>b.onclick=()=>NX_ENV.setInternCfg(w.date,c=>{ if(b.dataset.v) c.nx=true; else delete c.nx; },true));
   document.querySelectorAll('#ikLen button').forEach(b=>b.onclick=()=>NX_ENV.setInternCfg(w.date,c=>{ if(b.dataset.v) c.len=Number(b.dataset.v); else delete c.len; },true));
   if($('ikSit')) $('ikSit').onchange=e=>NX_ENV.setInternCfg(w.date,c=>{ if(e.target.value) c.sit=e.target.value; else delete c.sit; },true);
   if($('ikSit2')) $('ikSit2').onchange=e=>NX_ENV.setInternCfg(w.date,c=>{ if(e.target.value) c.sit2=e.target.value; else delete c.sit2; },true);
