@@ -1794,15 +1794,17 @@ function stPrintHtml(R){
   const themesHtml=(l,t)=>`<div style="margin-top:18px"><div style="font-size:20px;font-weight:700">${t.tema}</div><div style="font-size:13px;color:#555;margin-bottom:6px">${t.temaSub}</div>
     ${R.themes.map(x=>{ const ds=periodDates(x.p), loc=t.loc, f=d=>new Date(d+'T12:00:00').toLocaleDateString(loc,{day:'numeric',month:'short'});
       return `<div style="display:flex;gap:12px;padding:7px 0;border-top:1px solid #ddd;font-size:15px"><span style="width:210px;flex-shrink:0;color:#555">${esc(pName(x.p,l))} · ${esc(f(ds[0]))} – ${esc(f(ds[ds.length-1]))}</span><b>${esc(l==='en'?(TH_EN[x.th]||x.th):x.th)}</b></div>`; }).join('')}</div>`;
-  const tile=(x,t)=>`<div style="background:#eef5f0;border-radius:12px;padding:12px 14px"><div style="font-size:36px;font-weight:700;color:#1F6B46;line-height:1">${x}</div><div style="font-size:15px;margin-top:6px">${t}</div></div>`;
-  const page=(l,first)=>{ const t=L[l], tk=['tr','snitt','barn','timer','snittT','voksen','voksne'].filter(k=>on[k]&&val[k]!==null), nT=tk.length, tiles=tk.map(k=>tile(l==='en'?String(val[k]).replace(',','.'):val[k],t[k])).join('');
+  const logo=($('clubLogo')||{}).src||'';   /* klubblogoen øverst til høyre (v102) */
+  const tile=(x,t,i)=>{ const hi=i===0; return `<div style="background:${hi?'#1F6B46':'#eef5f0'};color:${hi?'#fff':'#141413'};border-radius:12px;padding:12px 14px;border-top:5px solid #F2C230"><div style="font-size:36px;font-weight:700;color:${hi?'#fff':'#1F6B46'};line-height:1">${x}</div><div style="font-size:15px;margin-top:6px">${t}</div></div>`; };
+  const page=(l,first)=>{ const t=L[l], tk=['tr','snitt','barn','timer','snittT','voksen','voksne'].filter(k=>on[k]&&val[k]!==null), nT=tk.length, tiles=tk.map((k,i)=>tile(l==='en'?String(val[k]).replace(',','.'):val[k],t[k],i)).join('');
     return `<section style="${first?'':'break-before:page;page-break-before:always;'}padding:8mm 4mm;font-family:Barlow,Arial,sans-serif;color:#141413">
-      <div style="border-bottom:4px solid #1F6B46;padding-bottom:10px"><div style="font-size:13px;font-weight:700;color:#1F6B46;letter-spacing:.08em">${t.kick}</div>
-      <div style="font-size:36px;font-weight:700;margin-top:2px">${t.title}</div><div style="font-size:15px;color:#444;margin-top:4px">${t.sub}${d0?' · '+esc(per(t.loc)):''}</div></div>
+      <div style="background:#1F6B46;color:#fff;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:16px"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:#F2C230;letter-spacing:.08em">${t.kick}</div>
+      <div style="font-size:36px;font-weight:700;margin-top:2px">${t.title}</div><div style="font-size:15px;color:#DCEBE0;margin-top:4px">${t.sub}${d0?' · '+esc(per(t.loc)):''}</div></div>
+      ${logo?`<div style="flex-shrink:0;width:84px;height:84px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center"><img src="${logo}" alt="Manglerud Star" style="width:64px;height:64px;object-fit:contain"></div>`:''}</div>
       ${tiles?`<div style="display:grid;grid-template-columns:repeat(${nT>6?4:3},minmax(0,1fr));gap:10px;margin-top:16px">${tiles}</div>`:''}
       ${on.tema&&R.themes.length?themesHtml(l,t):''}
       ${on.kurve&&R.T.length?`<div style="margin-top:18px"><div style="font-size:20px;font-weight:700;margin-bottom:6px">${t.kurve}</div>${stPrintChart(R)}</div>`:''}
-      <div style="margin-top:16px;font-size:15px">${t.help}</div>
+      <div style="margin-top:16px;font-size:16px;font-weight:700;background:#FFF4CC;border-left:6px solid #F2C230;border-radius:8px;padding:12px 14px">${t.help}</div>
       <div style="margin-top:18px;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:flex-end;font-size:12px;color:#666"><span>${t.page}</span></div></section>`; };
   return page('nb',true)+page('en',false);
 }
