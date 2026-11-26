@@ -1783,17 +1783,20 @@ function stPrintHtml(R){
   const L={nb:{kick:'MANGLERUD STAR · G2018',title:'Treningene i tall',sub:'Takk for at dere sender barna på trening!',
       tr:'treninger',snitt:'barn på hver trening i snitt',barn:'barn har trent med oss',timer:'timer frivillig innsats fra trenerteamet',snittT:'timer i snitt per trener',voksen:'barn per voksen på trening i snitt',voksne:'voksne har vært trenere',
       tema:'Dette har vi trent på',temaSub:'Etter Norges Fotballforbunds plan for 8–9-åringer',
-      kurve:'Barn per trening',help:'Vil du hjelpe til som trener eller på en stasjon? Snakk med oss!',page:'Side 1 av 2 · English on page 2',loc:'nb-NO'},
+      kurve:'Barn per trening',help:'Vil du hjelpe til som trener? Snakk med oss!',page:'Side 1 av 2 · English on page 2',loc:'nb-NO'},
     en:{kick:'MANGLERUD STAR · G2018',title:'Our training in numbers',sub:'Thank you for bringing your children to training!',
       tr:'training sessions',snitt:'children per session on average',barn:'children have trained with us',timer:'hours of volunteer work from the coaching team',snittT:'hours per coach on average',voksen:'children per adult at each session on average',voksne:'adults have been coaches',
       tema:'What we have been training',temaSub:'Following the Norwegian Football Association plan for 8–9 year olds',
-      kurve:'Children per session',help:'Would you like to help as a coach or at a station? Talk to us!',page:'Page 2 of 2 · Norsk på side 1',loc:'en-GB'}};
+      kurve:'Children per session',help:'Would you like to help as a coach? Talk to us!',page:'Page 2 of 2 · Norsk på side 1',loc:'en-GB'}};
   const val={tr:R.T.length,snitt:Math.round(R.avg),barn:R.kids,timer:stH(R.hours),snittT:stH(R.hAvg),voksen:R.perAdult?Math.round(R.perAdult):null,voksne:R.nco||null};
+  /* Én linje på vanlig språk om hva barna øver på i hvert tema (v102, Alexander 26. nov) */
+  const TH_TXT={nb:{'Spille oss fremover':'Føre ballen framover, pasninger og å finne rom','Komme til avslutning':'Dribling, samspill foran mål og mange skudd','Vinne ball':'Presse, takle og ta ballen tilbake sammen','Hindre mål':'Stå riktig, hjelpe hverandre og stoppe skudd'},
+    en:{'Spille oss fremover':'Dribbling forward, passing and finding space','Komme til avslutning':'Dribbling, teamwork in front of goal and lots of shots','Vinne ball':'Pressing, tackling and winning the ball back together','Hindre mål':'Good positioning, helping each other and stopping shots'}};
   const TH_EN={'Spille oss fremover':'Moving the ball forward','Komme til avslutning':'Getting into scoring positions','Vinne ball':'Winning the ball','Hindre mål':'Preventing goals'};
   const pName=(p,l)=>l==='en'?p.name.replace('Høst','Autumn').replace('Periode','Period').replace('Sommeravslutning','Summer finale'):p.name;
   const themesHtml=(l,t)=>`<div style="margin-top:18px"><div style="font-size:20px;font-weight:700">${t.tema}</div><div style="font-size:13px;color:#555;margin-bottom:6px">${t.temaSub}</div>
     ${R.themes.map(x=>{ const ds=periodDates(x.p), loc=t.loc, f=d=>new Date(d+'T12:00:00').toLocaleDateString(loc,{day:'numeric',month:'short'});
-      return `<div style="display:flex;gap:12px;padding:7px 0;border-top:1px solid #ddd;font-size:15px"><span style="width:210px;flex-shrink:0;color:#555">${esc(pName(x.p,l))} · ${esc(f(ds[0]))} – ${esc(f(ds[ds.length-1]))}</span><b>${esc(l==='en'?(TH_EN[x.th]||x.th):x.th)}</b></div>`; }).join('')}</div>`;
+      return `<div style="display:flex;gap:12px;padding:7px 0;border-top:1px solid #ddd;font-size:15px"><span style="width:210px;flex-shrink:0;color:#555">${esc(pName(x.p,l))} · ${esc(f(ds[0]))} – ${esc(f(ds[ds.length-1]))}</span><span><b>${esc(l==='en'?(TH_EN[x.th]||x.th):x.th)}</b><br><span style="color:#444;font-size:14px">${esc((TH_TXT[l]||{})[x.th]||'')}</span></span></div>`; }).join('')}</div>`;
   const logo=($('clubLogo')||{}).src||'';   /* klubblogoen øverst til høyre (v102) */
   const tile=(x,t,i)=>{ const hi=i===0; return `<div style="background:${hi?'#1F6B46':'#eef5f0'};color:${hi?'#fff':'#141413'};border-radius:12px;padding:12px 14px;border-top:5px solid #F2C230"><div style="font-size:36px;font-weight:700;color:${hi?'#fff':'#1F6B46'};line-height:1">${x}</div><div style="font-size:15px;margin-top:6px">${t}</div></div>`; };
   const page=(l,first)=>{ const t=L[l], tk=['tr','snitt','barn','timer','snittT','voksen','voksne'].filter(k=>on[k]&&val[k]!==null), nT=tk.length, tiles=tk.map((k,i)=>tile(l==='en'?String(val[k]).replace(',','.'):val[k],t[k],i)).join('');
