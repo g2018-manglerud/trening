@@ -111,6 +111,13 @@ textarea{min-height:120px;resize:vertical}
 .roll li .rg{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--ink)}
 .roll li .rg i{width:12px;height:12px;border-radius:3px;border:1px solid #17211B;display:inline-block}
 .roll .rfoot{padding:8px 12px 12px;font-size:13px;color:var(--muted)}
+/* v103: «Borte»-listen nederst i oppropet – trykk for å hente inn igjen uten å lete i lista */
+.roll .rgone{border-top:2px dashed var(--line);margin-top:6px;padding:10px 8px 4px;display:flex;flex-direction:column;gap:8px}
+.roll .rgone .label{font-size:12px}
+.roll .rgone .chips{display:flex;flex-wrap:wrap;gap:6px}
+.roll .rgone .chips button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:600 14px var(--body);border-radius:999px;padding:7px 12px;cursor:pointer;width:auto}
+.roll .rgone .chips button:disabled{cursor:default;opacity:.7}
+.roll .rgone .chips b{color:var(--accent);font-size:16px;line-height:1}
 /* v97: tekst på kartet skal ikke ta imot trykk – ellers treffer man ikke målet under navnet */
 svg[aria-label^="Baneoversikt"] text{pointer-events:none}
 .ikchip{display:inline-block;font-weight:700;font-size:13px;border-radius:999px;padding:3px 10px;min-width:54px;text-align:center}
@@ -923,6 +930,14 @@ function renderRoll(){
     b.disabled=!CANS; b.onclick=()=>toggleRoll(p.id);
     li.appendChild(b); ul.appendChild(li); });
   box.appendChild(ul);
+  /* v103: de som er borte, samlet nederst. Navnene over blir stående (streket over) – her henter du dem inn med ett trykk. */
+  const gone=S.players.filter(p=>!S.present[p.id]).sort((a,b)=>a.name.localeCompare(b.name,'nb'));
+  if(gone.length){ const g=document.createElement('div'); g.className='rgone'; g.id='rollGone';
+    g.innerHTML=`<span class="label">Borte (${gone.length})${CANS?' – trykk når noen kommer likevel':''}</span><div class="chips"></div>`;
+    const c=g.querySelector('.chips');
+    gone.forEach(p=>{ const b=document.createElement('button'); b.type='button'; b.innerHTML=`${CANS?'<b>+</b>':''}${esc(p.name)}`;
+      b.setAttribute('aria-label',p.name+', borte – trykk for å hente inn'); b.disabled=!CANS; b.onclick=()=>toggleRoll(p.id); c.appendChild(b); });
+    box.appendChild(g); }
   if(CANS){ const a=document.createElement('div'); a.className='radd';
     if(rollAdd){ a.id='rollAddBox';
       a.innerHTML=`<div class="row"><input type="text" id="rollAddName" placeholder="Navn" aria-label="Navn på ny spiller" autocomplete="off"><button type="button" class="btn primary" id="rollAddOk">Legg til</button></div>
@@ -4178,7 +4193,7 @@ const closeAll=()=>{ if(window.G2018_DEMO&&window.G2018_DEMO.close) return windo
 const tab=t=>()=>{ closeAll(); const b=$('tab-'+t); if(b&&b.getAttribute('aria-selected')!=='true') b.click(); };
 const view=k=>{ const bs=[...document.querySelectorAll('#sessCards .nx-fseg button')]; const b=k==='spill'?bs[bs.length-1]:bs[0]; if(b&&b.getAttribute('aria-pressed')!=='true') b.click(); };
 const okt=k=>()=>{ tab('ovelser')(); view(k); };
-const absentBtn=()=>q('#rollCard li button.absent');
+const absentBtn=()=>q('#rollGone .chips button')||q('#rollCard li button.absent');
 /* Stegene i hele prosessen. do = det appen gjør etter et øyeblikk, så du ser hva som skjer når du trykker. */
 const P={
   lead:{pre:tab('trening'),sel:'#leadClaim',alt:'#leadBar',h:'Før trening',t:'Trykk «Jeg lager gruppene i dag». Da er det du som styrer oppropet og gruppene.',do:()=>window.G2018_DEMO.claim()},
@@ -4188,7 +4203,7 @@ const P={
   done:{pre:tab('trening'),sel:'#rollDoneBtn',alt:'#callView .callv-band',t:'Trykk «Ferdig – del inn i grupper».',do:()=>click('#rollDoneBtn'),after:()=>q('#callView .callv-band')},
   group:{sel:'#callView .callv-band',t:'Gruppene vises én om gangen: farge, stasjon, trener, kartet og navnene. Les dem opp.'},
   next:{sel:'#callNext',t:'Trykk «Neste gruppe» for neste. Etter siste gruppe kommer du tilbake til oppropet.',do:()=>click('#callNext')},
-  late:{pre:tab('trening'),sel:'#rollCard li button.absent',alt:'#lateSheet .late-box',t:'Kommer noen for sent? Trykk på navnet i oppropet.',do:()=>click(absentBtn()),after:()=>q('#lateSheet .late-box')},
+  late:{pre:tab('trening'),sel:'#rollGone .chips button',alt:'#lateSheet .late-box',t:'Kommer noen for sent? Trykk på navnet under «Borte» nederst i oppropet.',do:()=>click(absentBtn()),after:()=>q('#lateSheet .late-box')},
   lateMsg:{sel:'#lateSheet .late-box',t:'Appen viser hvilken gruppe spilleren skal til, hvor de er og hvem som er trener. Ingen andre flyttes. Trykk «OK».'},
   reset:{pre:tab('trening'),sel:'#rollReset',alt:'#resetSheet .sheet-box',t:'Ble det feil? Nederst i oppropet ligger «Nullstill gruppene».',do:()=>click('#rollReset'),after:()=>q('#resetSheet .sheet-box')},
   resetQ:{sel:'#resetSheet .sheet-box',t:'Du får et kontrollspørsmål. Trykker du «Ja», kan du dele inn på nytt. Oppmøtet blir stående.'},
